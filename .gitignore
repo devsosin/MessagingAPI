@@ -2,6 +2,7 @@
 
 memo.txt
 .env
+*.html
 
 # Created by https://www.toptal.com/developers/gitignore/api/rust,visualstudiocode,windows,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust,visualstudiocode,windows,macos

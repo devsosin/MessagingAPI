@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env::consts::OS, fmt::Debug};
+use std::{collections::HashMap, env::consts::OS, fmt::Debug, io::Error};
 
 use reqwest::multipart::Form;
 use rustc_version::version;
@@ -130,4 +130,18 @@ impl Into<ClientError> for SolapiErrorResponse {
         // println!("{}", self.error_code);
         ClientError::SolapiError(self.error_message)
     }
+}
+
+pub trait EmailTemplateLoader {
+    async fn get_content(&self) -> Result<String, Error>;
+    fn is_html(&self) -> bool;
+}
+
+pub trait ReceiverGetter {
+    fn get_name(&self) -> &Option<String>;
+    fn get_address(&self) -> &str;
+}
+
+pub trait ToEmailVariable {
+    fn to_map(&self) -> HashMap<String, String>;
 }

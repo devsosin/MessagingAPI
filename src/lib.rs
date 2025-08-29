@@ -5,6 +5,7 @@ pub mod provider;
 pub mod types;
 pub mod utils;
 
+use lettre::SmtpTransport;
 use reqwest::Client;
 
 use crate::configs::{aligo::AligoConfig, email::EmailConfig, solapi::SolapiConfig};
@@ -39,4 +40,21 @@ impl Solapi {
 
 pub struct EmailSender {
     config: EmailConfig,
+    mailer: SmtpTransport,
+}
+
+impl EmailSender {
+    pub fn new(config: EmailConfig) -> Self {
+        let creds = (&config).into();
+        let mail_server: &str = config.get_server().into();
+        let smtp_server = format!("smtp.{}.com", mail_server);
+
+        // pool: Maximum 10, idle time: 60s
+        let mailer = SmtpTransport::relay(&smtp_server)
+            .unwrap()
+            .credentials(creds)
+            .build();
+
+        Self { config, mailer }
+    }
 }

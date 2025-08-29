@@ -67,11 +67,13 @@ impl Into<multipart::Form> for MmsBody {
     }
 }
 
+// #[cfg(feature = "aligo")]
+// mod aligo {
 pub trait AligoMessaging {
     async fn send_sms(
         &self,
-        receiver_list: &Vec<&str>,
-        message_list: &Vec<&str>,
+        receivers: &Vec<&str>,
+        messages: &Vec<&str>,
         message_type: &str,
     ) -> ClientResult<AligoResponse>;
     async fn send_mms(
@@ -85,15 +87,15 @@ pub trait AligoMessaging {
 impl AligoMessaging for AligoAPI {
     async fn send_sms(
         &self,
-        receiver_list: &Vec<&str>,
-        message_list: &Vec<&str>,
+        receivers: &Vec<&str>,
+        messages: &Vec<&str>,
         message_type: &str,
     ) -> ClientResult<AligoResponse> {
         let msg_type: MessageType = message_type.into();
 
         let mut msg_body = HashMap::new();
 
-        for (i, (rec, msg)) in zip(receiver_list, message_list).enumerate() {
+        for (i, (rec, msg)) in zip(receivers, messages).enumerate() {
             let i = i + 1;
             msg_body.insert(format!("rec_{i}"), rec.to_string());
             msg_body.insert(format!("msg_{i}"), msg.to_string());
@@ -125,3 +127,4 @@ impl AligoMessaging for AligoAPI {
         self.send("send/", data, Some(image_path)).await
     }
 }
+// }
