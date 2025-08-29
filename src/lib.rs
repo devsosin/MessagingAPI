@@ -16,15 +16,25 @@ pub struct AligoAPI {
 
 impl AligoAPI {
     pub fn new(config: AligoConfig) -> Self {
-        let client = Client::new();
-
-        Self { config, client }
+        Self {
+            config,
+            client: Client::new(),
+        }
     }
 }
 
 pub struct Solapi {
     config: SolapiConfig,
     client: Client,
+}
+
+impl Solapi {
+    pub fn new(config: SolapiConfig) -> Self {
+        Self {
+            config,
+            client: Client::new(),
+        }
+    }
 }
 
 pub struct EmailSender {

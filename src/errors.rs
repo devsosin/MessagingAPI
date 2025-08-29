@@ -7,8 +7,8 @@ pub enum ClientError {
 
     #[error("Aligo Error: {0}")]
     AligoError(String),
-    #[error("Solapi Error")]
-    SolapiError,
+    #[error("Solapi Error: {0}")]
+    SolapiError(String),
     #[error("Email Error")]
     EmailError,
 

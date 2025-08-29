@@ -1,6 +1,7 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, env::consts::OS, fmt::Debug};
 
 use reqwest::multipart::Form;
+use rustc_version::version;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::ClientError;
@@ -8,7 +9,7 @@ use crate::errors::ClientError;
 pub type ClientResult<T> = Result<T, ClientError>;
 
 #[derive(Debug, Serialize)]
-pub struct AligoRequest<T>
+pub(crate) struct AligoRequest<T>
 where
     T: Serialize + Debug,
 {
@@ -34,19 +35,6 @@ where
         }
     }
 
-    pub(crate) fn get_key(&self) -> &str {
-        &self.key
-    }
-    pub(crate) fn get_userid(&self) -> &str {
-        &self.userid
-    }
-    pub(crate) fn get_sender(&self) -> &str {
-        &self.sender
-    }
-    pub(crate) fn get_testmode(&self) -> String {
-        self.testmode_yn.to_string()
-    }
-
     pub(crate) fn get_data(&self) -> &T {
         &self.data
     }
@@ -56,10 +44,10 @@ impl<T: Serialize + Debug + Into<Form> + Clone> Into<Form> for AligoRequest<T> {
     fn into(self) -> Form {
         let form: Form = self.get_data().clone().into();
 
-        form.text("key", self.get_key().to_owned())
-            .text("userid", self.get_userid().to_owned())
-            .text("sender", self.get_sender().to_owned())
-            .text("testmode_yn", self.get_testmode())
+        form.text("key", self.key.to_owned())
+            .text("userid", self.userid.to_owned())
+            .text("sender", self.sender.to_owned())
+            .text("testmode_yn", self.testmode_yn.to_string())
     }
 }
 
@@ -71,10 +59,75 @@ pub struct AligoResponse {
 }
 
 impl AligoResponse {
-    pub fn is_error(&self) -> ClientResult<()> {
+    pub(crate) fn is_error(&self) -> ClientResult<()> {
         match self.result_code {
             -101 => Err(ClientError::AligoError(self.message.clone())),
             _ => Ok(()),
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct SolapiRequest<T> {
+    agent: AgentInfo,
+
+    #[serde(flatten)]
+    data: T,
+}
+
+impl<T: Serialize + Debug> SolapiRequest<T> {
+    pub(crate) fn new(data: T) -> Self {
+        Self {
+            agent: AgentInfo::new(),
+            data,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentInfo {
+    sdk_version: String,
+    os_platform: String,
+}
+
+impl AgentInfo {
+    fn new() -> Self {
+        let pkg_version = env!("CARGO_PKG_VERSION");
+
+        Self {
+            sdk_version: format!("rust/{pkg_version}"),
+            os_platform: format!("{} | {}", OS, version().unwrap()),
+        }
+    }
+}
+
+pub(crate) trait SolapiSetting {
+    fn set_info(&mut self, from: &str, pf_id: &str);
+}
+
+pub trait ToAlimtalkVariable {
+    fn to_map(&self) -> HashMap<String, String>;
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SolapiResponse<T> {
+    status_code: i32,
+    status_message: String,
+    data: T,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SolapiErrorResponse {
+    error_code: String,
+    error_message: String,
+}
+
+impl Into<ClientError> for SolapiErrorResponse {
+    fn into(self) -> ClientError {
+        // println!("{}", self.error_code);
+        ClientError::SolapiError(self.error_message)
     }
 }
