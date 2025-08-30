@@ -4,7 +4,7 @@ use chrono::{SecondsFormat, Utc};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-use crate::utils::get_uuid;
+use super::utils::get_uuid;
 
 pub struct SolapiConfig {
     pf_id: String,
@@ -72,4 +72,12 @@ impl SolapiConfig {
 async fn test_sign() {
     let result = sign("1", "2");
     println!("{}", result)
+}
+
+#[tokio::test]
+async fn test_utcstr() {
+    let dt = Utc::now();
+
+    // ISO 8601 규격 "2025-08-29T07:28:32.858Z"
+    println!("{}", dt.to_rfc3339_opts(SecondsFormat::Millis, true));
 }

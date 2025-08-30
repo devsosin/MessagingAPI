@@ -1,10 +1,12 @@
 use lettre::message::Mailbox;
 
 use crate::{
-    EmailSender,
+    ClientResult,
+    email::types::{EmailTemplateLoader, ReceiverGetter, ToEmailVariable},
     errors::ClientError,
-    types::{ClientResult, EmailTemplateLoader, ReceiverGetter, ToEmailVariable},
 };
+
+use super::EmailSender;
 
 pub trait EmailMessaging {
     // compile time

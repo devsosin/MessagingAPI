@@ -1,9 +1,8 @@
 use std::{env, fmt::Debug};
 
-use reqwest::multipart;
 use serde::Serialize;
 
-use crate::types::AligoRequest;
+use super::types::AligoRequest;
 
 #[derive(Debug)]
 pub struct AligoConfig {
@@ -31,10 +30,7 @@ impl AligoConfig {
         }
     }
 
-    pub fn to_body<T: Serialize + Debug + Into<multipart::Form> + Clone>(
-        &self,
-        data: T,
-    ) -> AligoRequest<T> {
+    pub(super) fn to_body<T: Serialize + Debug>(&self, data: T) -> AligoRequest<T> {
         AligoRequest::new(
             &self.api_key,
             &self.user_id,

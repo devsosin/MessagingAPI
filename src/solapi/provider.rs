@@ -3,9 +3,11 @@ use std::fmt::Debug;
 use reqwest::{StatusCode, header::AUTHORIZATION};
 use serde::Serialize;
 
-use crate::{
+use crate::ClientResult;
+
+use super::{
     Solapi,
-    types::{ClientResult, SolapiErrorResponse, SolapiRequest, SolapiResponse, SolapiSetting},
+    types::{SolapiErrorResponse, SolapiRequest, SolapiResponse, SolapiSetting},
 };
 
 fn is_ok(status_code: &StatusCode) -> bool {

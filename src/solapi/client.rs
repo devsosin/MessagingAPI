@@ -1,10 +1,11 @@
+use serde::Serialize;
 use std::{collections::HashMap, iter::zip};
 
-use serde::Serialize;
+use crate::ClientResult;
 
-use crate::{
+use super::{
     Solapi,
-    types::{ClientResult, SolapiResponse, SolapiSetting, ToAlimtalkVariable},
+    types::{SolapiResponse, SolapiSetting, ToAlimtalkVariable},
 };
 
 #[derive(Debug, Serialize)]

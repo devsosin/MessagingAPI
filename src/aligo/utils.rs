@@ -1,10 +1,7 @@
 use reqwest::{Client, multipart};
 use tokio::fs;
-use uuid::Uuid;
 
-use crate::{errors::ClientError, types::ClientResult};
-
-pub async fn get_image() {}
+use crate::{ClientResult, errors::ClientError};
 
 pub fn get_mime_type(image_url: &str) -> String {
     let ext = image_url.split(".").last().unwrap();
@@ -44,8 +41,4 @@ pub async fn get_file_part(path_or_url: &str) -> ClientResult<multipart::Part> {
         .mime_str(&mime_type)
         .unwrap();
     Ok(part)
-}
-
-pub fn get_uuid() -> String {
-    Uuid::new_v4().simple().to_string()
 }

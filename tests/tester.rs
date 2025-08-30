@@ -1,13 +1,4 @@
-use std::{collections::HashMap, env::consts};
-
-use chrono::{SecondsFormat, Utc};
-use messaging::{
-    Solapi, clients::solapi::SolapiMessaging, configs::solapi::SolapiConfig,
-    types::ToAlimtalkVariable, utils::get_uuid,
-};
-use rustc_version::version;
 use serde_json::json;
-use uuid::Uuid;
 
 #[tokio::test]
 async fn test_serde() {
@@ -18,95 +9,87 @@ async fn test_serde() {
     println!("{value}");
 }
 
-#[tokio::test]
-async fn test_utcstr() {
-    let dt = Utc::now();
+#[cfg(feature = "solapi")]
+mod solapi_tests {
+    use messaging::solapi::{
+        Solapi, client::SolapiMessaging, config::SolapiConfig, types::ToAlimtalkVariable,
+    };
+    use rustc_version::version;
+    use std::{collections::HashMap, env::consts};
 
-    // ISO 8601 규격 "2025-08-29T07:28:32.858Z"
-    println!("{}", dt.to_rfc3339_opts(SecondsFormat::Millis, true));
-}
+    #[tokio::test]
+    async fn test_os() {
+        let os_info = consts::OS;
+        let version = version().unwrap();
 
-#[tokio::test]
-async fn test_uuid() {
-    let uuid = get_uuid();
-
-    // uuid1 파라미터 바꾸지 않을 경우 계속 같은값 생성됨.
-    let uuid = Uuid::new_v4();
-    println!("{}", uuid.simple());
-    // ff96562f85604b809ef502ff928d36d0
-    // 81acde5ea08b4435b53dedf381c5ed1b
-}
-
-#[tokio::test]
-async fn test_os() {
-    let os_info = consts::OS;
-    let version = version().unwrap();
-
-    println!("{}", os_info);
-    println!("{}", version);
-}
-
-#[tokio::test]
-async fn test_solapi() {
-    use dotenv::dotenv;
-    dotenv().ok();
-
-    let config = SolapiConfig::from_env();
-    let api = Solapi::new(config);
-    let receivers = vec!["00012345678", "00023456789"];
-    let template_id = "test_template";
-
-    struct SampleVariable {}
-    impl ToAlimtalkVariable for SampleVariable {
-        fn to_map(&self) -> HashMap<String, String> {
-            let mut variable = HashMap::new();
-
-            variable.insert("#{회원명}".into(), "테스트".into());
-
-            variable
-        }
+        println!("{}", os_info);
+        println!("{}", version);
     }
 
-    let variables = vec![SampleVariable {}, SampleVariable {}];
+    #[tokio::test]
+    async fn test_solapi() {
+        use dotenv::dotenv;
+        dotenv().ok();
 
-    let response = api
-        .send_alimtalks(template_id, &receivers, &variables)
-        .await;
+        let config = SolapiConfig::from_env();
+        let api = Solapi::new(config);
+        let receivers = vec!["00012345678", "00023456789"];
+        let template_id = "test_template";
 
-    println!("{:?}", response);
+        struct SampleVariable {}
+        impl ToAlimtalkVariable for SampleVariable {
+            fn to_map(&self) -> HashMap<String, String> {
+                let mut variable = HashMap::new();
+
+                variable.insert("#{회원명}".into(), "테스트".into());
+
+                variable
+            }
+        }
+
+        let variables = vec![SampleVariable {}, SampleVariable {}];
+
+        let response = api
+            .send_alimtalks(template_id, &receivers, &variables)
+            .await;
+
+        println!("{:?}", response);
+    }
 }
 
-// mod tests {
-use messaging::AligoAPI;
-use messaging::clients::aligo::AligoMessaging;
-use messaging::configs::aligo::AligoConfig;
+#[cfg(feature = "aligo")]
+mod aligo_tests {
+    use messaging::aligo::AligoAPI;
+    use messaging::aligo::client::AligoMessaging;
+    use messaging::aligo::config::AligoConfig;
 
-#[tokio::test]
-async fn test_aligo() {
-    use dotenv::dotenv;
-    dotenv().ok();
+    #[tokio::test]
+    async fn test_aligo() {
+        use dotenv::dotenv;
+        dotenv().ok();
 
-    let config = AligoConfig::from_env();
-    let api = AligoAPI::new(config);
-    let receiver_list = vec!["00012345678", "00023456789"];
-    let message_list = vec!["Test 1", "Test 2"];
+        let config = AligoConfig::from_env();
+        let api = AligoAPI::new(config);
+        let receiver_list = vec!["00012345678", "00023456789"];
+        let message_list = vec!["Test 1", "Test 2"];
 
-    let res = api.send_sms(&receiver_list, &message_list, "sms").await;
-    println!("{:?}", res);
+        let res = api.send_sms(&receiver_list, &message_list, "sms").await;
+        println!("{:?}", res);
 
-    let res = api.send_mms("01012345678", "Test 1", "https://png.pngtree.com/thumb_back/fh260/background/20230613/pngtree-small-white-rabbit-in-the-grass-image_2915502.jpg").await;
-    println!("{:?}", res);
+        let res = api.send_mms("01012345678", "Test 1", "https://png.pngtree.com/thumb_back/fh260/background/20230613/pngtree-small-white-rabbit-in-the-grass-image_2915502.jpg").await;
+        println!("{:?}", res);
+    }
 }
-// }
 
-// #[cfg(feature = "email")]
-mod tests {
+#[cfg(feature = "email")]
+mod email_tests {
+    use messaging::email::{
+        EmailSender,
+        client::EmailMessaging,
+        config::EmailConfig,
+        types::{EmailTemplateLoader, ReceiverGetter, ToEmailVariable},
+    };
     use std::collections::HashMap;
-
-    use messaging::EmailSender;
-    use messaging::clients::email::EmailMessaging;
-    use messaging::configs::email::EmailConfig;
-    use messaging::types::{EmailTemplateLoader, ReceiverGetter, ToEmailVariable};
     use tokio::fs;
 
     #[tokio::test]

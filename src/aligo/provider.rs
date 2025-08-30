@@ -3,11 +3,9 @@ use std::fmt::Debug;
 use reqwest::multipart::Form;
 use serde::Serialize;
 
-use crate::{
-    AligoAPI,
-    types::{AligoResponse, ClientResult},
-    utils::get_file_part,
-};
+use crate::ClientResult;
+
+use super::{AligoAPI, types::AligoResponse, utils::get_file_part};
 
 impl AligoAPI {
     pub(crate) async fn send<T: Serialize + Debug + Into<Form> + Clone>(

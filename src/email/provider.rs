@@ -3,7 +3,9 @@ use lettre::{
     message::{Mailbox, MessageBuilder, header::ContentType},
 };
 
-use crate::{EmailSender, errors::ClientError, types::ClientResult};
+use crate::{ClientResult, errors::ClientError};
+
+use super::EmailSender;
 
 impl EmailSender {
     pub(crate) async fn send(

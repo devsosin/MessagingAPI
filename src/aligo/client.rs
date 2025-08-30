@@ -3,10 +3,9 @@ use std::{collections::HashMap, iter::zip};
 use reqwest::multipart;
 use serde::Serialize;
 
-use crate::{
-    AligoAPI,
-    types::{AligoResponse, ClientResult},
-};
+use crate::ClientResult;
+
+use super::{AligoAPI, types::AligoResponse};
 
 enum MessageType {
     SMS,
@@ -67,8 +66,6 @@ impl Into<multipart::Form> for MmsBody {
     }
 }
 
-// #[cfg(feature = "aligo")]
-// mod aligo {
 pub trait AligoMessaging {
     async fn send_sms(
         &self,
@@ -127,4 +124,3 @@ impl AligoMessaging for AligoAPI {
         self.send("send/", data, Some(image_path)).await
     }
 }
-// }
