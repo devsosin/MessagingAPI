@@ -22,10 +22,10 @@ lettre = { version = "0.11.18", optional = true }
 
 thiserror = "2.0.16"
 
+[dev-dependencies]
+dotenv = "0.15.0"
+
 [features]
 email = ["lettre"]
 aligo = ["tokio-util"]
 solapi = ["rustc_version", "hex", "sha2", "hmac", "uuid", "chrono"]
-
-[dev-dependencies]
-dotenv = "0.15.0"
