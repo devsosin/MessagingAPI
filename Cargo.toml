@@ -18,7 +18,13 @@ sha2 = { version = "0.10.9", optional = true }
 hex = { version = "0.4.3", optional = true }
 rustc_version = { version = "0.4.1", optional = true }
 
-lettre = { version = "0.11.18", optional = true }
+lettre = { version = "0.11.18", default-features = false, features = [
+    "builder",
+    "smtp-transport",
+    "pool",
+    "tokio1",
+    "tokio1-native-tls",
+], optional = true }
 
 thiserror = "2.0.16"
 

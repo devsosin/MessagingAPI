@@ -3,12 +3,14 @@ pub mod config;
 mod provider;
 pub mod types;
 
+use std::time::Duration;
+
 use config::EmailConfig;
-use lettre::SmtpTransport;
+use lettre::{AsyncSmtpTransport, Tokio1Executor, transport::smtp::PoolConfig};
 
 pub struct EmailSender {
     config: EmailConfig,
-    mailer: SmtpTransport,
+    mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 
 impl EmailSender {
@@ -17,10 +19,14 @@ impl EmailSender {
         let mail_server: &str = config.get_server().into();
         let smtp_server = format!("smtp.{}.com", mail_server);
 
-        // pool: Maximum 10, idle time: 60s
-        let mailer = SmtpTransport::relay(&smtp_server)
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&smtp_server)
             .unwrap()
             .credentials(creds)
+            .pool_config(
+                PoolConfig::new()
+                    .max_size(5) // Maximum Pool
+                    .idle_timeout(Duration::from_secs(60)), // idle time
+            )
             .build();
 
         Self { config, mailer }

@@ -1,5 +1,5 @@
 use lettre::{
-    Transport,
+    AsyncTransport,
     message::{Mailbox, MessageBuilder, header::ContentType},
 };
 
@@ -29,7 +29,7 @@ impl EmailSender {
             .body(String::from(content))
             .unwrap();
 
-        match self.mailer.send(&message) {
+        match self.mailer.send(message).await {
             Ok(_) => Ok(()),
             Err(e) => {
                 println!("{:?}", e);
