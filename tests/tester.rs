@@ -84,10 +84,7 @@ mod aligo_tests {
 #[cfg(feature = "email")]
 mod email_tests {
     use messaging::email::{
-        EmailSender,
-        client::EmailMessaging,
-        config::EmailConfig,
-        types::{EmailTemplateLoader, ReceiverGetter, ToEmailVariable},
+        EmailSender, client::EmailMessaging, config::EmailConfig, types::ReceiverGetter,
     };
     use std::collections::HashMap;
     use tokio::fs;
@@ -116,51 +113,15 @@ mod email_tests {
 
         let to_info = MyReceiver {
             name: Some("test1".into()),
-            address: "test1234@gmail.test".into(),
+            address: "test1234@gmail.com".into(),
         };
 
         let subject = "this mail is sent from rust";
-
-        struct SampleTemplate {}
-
-        impl EmailTemplateLoader for SampleTemplate {
-            async fn get_content(&self) -> Result<String, std::io::Error> {
-                let content_bytes = fs::read("./test_template.html").await?;
-                let content = String::from_utf8(content_bytes).unwrap();
-                Ok(content)
-            }
-
-            fn is_html(&self) -> bool {
-                true
-            }
-        }
-
-        let my_template = SampleTemplate {};
-
-        struct SampleVariable {
-            variables: Vec<[String; 2]>,
-        }
-
-        impl ToEmailVariable for SampleVariable {
-            fn to_map(&self) -> HashMap<String, String> {
-                let mut temp = HashMap::new();
-
-                self.variables.iter().for_each(|v| {
-                    let k1 = &v[0];
-                    let v1 = &v[1];
-                    temp.insert(k1.into(), v1.into());
-                });
-
-                temp
-            }
-        }
-
-        let variables = vec![["{{test_variable}}".into(), "test".into()]];
-        let my_variable = SampleVariable { variables };
+        let content = "";
 
         // Send the email
         let result = mail_sender
-            .send_email(&to_info, subject, &my_template, &my_variable)
+            .send_email(&to_info, subject, content, false)
             .await;
         println!("{:?}", result);
     }

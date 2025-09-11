@@ -1,10 +1,6 @@
 use lettre::message::Mailbox;
 
-use crate::{
-    ClientResult,
-    email::types::{EmailTemplateLoader, ReceiverGetter, ToEmailVariable},
-    errors::ClientError,
-};
+use crate::{ClientResult, email::types::ReceiverGetter};
 
 use super::EmailSender;
 
@@ -13,38 +9,29 @@ pub trait EmailMessaging {
     // use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
     // you can suppress this lint if you plan to use the trait only in your own code,
     // or do not care about auto traits like `Send` on the `Future`
-    fn send_email<T: EmailTemplateLoader, R: ReceiverGetter, V: ToEmailVariable>(
+    fn send_email<R: ReceiverGetter>(
         &self,
         receiver: &R,
         subject: &str,
-        template: &T,
-        variable: &V,
+        content: &str,
+        is_html: bool,
     ) -> impl Future<Output = ClientResult<()>>;
 }
 
 impl EmailMessaging for EmailSender {
-    async fn send_email<T: EmailTemplateLoader, R: ReceiverGetter, V: ToEmailVariable>(
+    async fn send_email<R: ReceiverGetter>(
         &self,
         receiver: &R,
         subject: &str,
-        template: &T,
-        variable: &V,
+        content: &str,
+        is_html: bool,
     ) -> ClientResult<()> {
         let receiver_mailbox = Mailbox::new(
             receiver.get_name().to_owned(),
             receiver.get_address().parse().unwrap(),
         );
-        let content = template.get_content().await.map_err(|e| {
-            println!("{:?}", e);
-            ClientError::InternalError("Template Load Failed")
-        })?;
 
-        let content = variable
-            .to_map()
-            .iter()
-            .fold(content, |c, (k, v)| c.replace(k, v));
-
-        self.send(&receiver_mailbox, subject, template.is_html(), &content)
+        self.send(&receiver_mailbox, subject, is_html, content)
             .await
     }
 }
