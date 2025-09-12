@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::{collections::HashMap, iter::zip};
 
-use crate::ClientResult;
+use crate::{ClientResult, errors::ClientError};
 
 use super::{
     Solapi,
@@ -63,7 +63,7 @@ pub trait SolapiMessaging {
     async fn send_alimtalks<T: ToAlimtalkVariable>(
         &self,
         template_id: &str,
-        receivers: &Vec<&str>,
+        receivers: &Vec<String>,
         variables: &Vec<T>,
     ) -> ClientResult<SolapiResponse<()>>;
 }
@@ -72,13 +72,17 @@ impl SolapiMessaging for Solapi {
     async fn send_alimtalks<T: ToAlimtalkVariable>(
         &self,
         template_id: &str,
-        receivers: &Vec<&str>,
+        receivers: &Vec<String>,
         variables: &Vec<T>,
     ) -> ClientResult<SolapiResponse<()>> {
         let uri = "messages/v4/send-many/detail";
         let mut messages = vec![];
 
         for (receiver, variable) in zip(receivers, variables) {
+            if !(receiver.starts_with("10") | receiver.starts_with("010")) {
+                continue;
+            }
+
             let option = KakaoOption {
                 pf_id: None,
                 template_id: template_id.into(),
@@ -92,6 +96,10 @@ impl SolapiMessaging for Solapi {
             };
 
             messages.push(message);
+        }
+
+        if messages.len() == 0 {
+            return Err(ClientError::SolapiError("No Messages To Send".into()));
         }
 
         let body = KakaoBody {

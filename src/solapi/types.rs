@@ -35,7 +35,7 @@ impl AgentInfo {
 
         Self {
             sdk_version: format!("rust/{pkg_version}"),
-            os_platform: format!("{} | {}", OS, version().unwrap()),
+            os_platform: format!("Tready"), //, OS, version().unwrap()),
         }
     }
 }

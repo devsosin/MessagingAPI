@@ -6,7 +6,7 @@ pub enum ClientError {
     ReqwestError(#[from] reqwest::Error),
 
     #[error("Aligo Error: {0}")]
-    AligoError(String),
+    AligoError(&'static str),
     #[error("Solapi Error: {0}")]
     SolapiError(String),
     #[error("Email Error")]
