@@ -51,9 +51,9 @@ pub trait ToAlimtalkVariable {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SolapiResponse<T> {
-    status_code: i32,
-    status_message: String,
-    data: T,
+    status: Option<String>,
+    date_sent: Option<String>,
+    data: Option<T>,
 }
 
 #[derive(Debug, Deserialize)]
