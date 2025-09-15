@@ -9,8 +9,8 @@ pub enum ClientError {
     AligoError(&'static str),
     #[error("Solapi Error: {0}")]
     SolapiError(String),
-    #[error("Email Error")]
-    EmailError,
+    #[error("Email Error: {0}")]
+    EmailError(String),
 
     #[error("Internal error: {0}")]
     InternalError(&'static str),
