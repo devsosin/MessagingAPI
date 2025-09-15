@@ -60,20 +60,20 @@ struct KakaoOption {
 }
 
 pub trait SolapiMessaging {
-    async fn send_alimtalks<T: ToAlimtalkVariable>(
+    async fn send_alimtalks(
         &self,
         template_id: &str,
         receivers: &Vec<String>,
-        variables: &Vec<T>,
+        variables: &Vec<HashMap<String, String>>,
     ) -> ClientResult<SolapiResponse<()>>;
 }
 
 impl SolapiMessaging for Solapi {
-    async fn send_alimtalks<T: ToAlimtalkVariable>(
+    async fn send_alimtalks(
         &self,
         template_id: &str,
         receivers: &Vec<String>,
-        variables: &Vec<T>,
+        variables: &Vec<HashMap<String, String>>,
     ) -> ClientResult<SolapiResponse<()>> {
         let uri = "messages/v4/send-many/detail";
         let mut messages = vec![];
@@ -86,7 +86,7 @@ impl SolapiMessaging for Solapi {
             let option = KakaoOption {
                 pf_id: None,
                 template_id: template_id.into(),
-                variables: variable.to_map(),
+                variables: variable.to_owned(),
             };
 
             let message = SolapiMessage {

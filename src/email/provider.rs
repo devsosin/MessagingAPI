@@ -32,9 +32,10 @@ impl EmailSender {
         match self.mailer.send(message).await {
             Ok(_) => Ok(()),
             Err(e) => {
-                println!("{:?}", e);
+                let err_msg = format!("{:?}", e);
+                println!("{}", err_msg);
 
-                Err(ClientError::EmailError)
+                Err(ClientError::EmailError(err_msg))
             }
         }
     }
