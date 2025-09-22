@@ -6,6 +6,8 @@ use lettre::{
     transport::smtp::authentication::Credentials,
 };
 
+use crate::email::EmailSender;
+
 pub(crate) enum EmailServer {
     Naver,
     Gmail,
@@ -72,5 +74,9 @@ impl EmailConfig {
 
     pub(crate) fn get_server(&self) -> &EmailServer {
         &self.email_server
+    }
+
+    pub fn to_sender(self) -> EmailSender {
+        EmailSender::new(self)
     }
 }

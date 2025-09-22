@@ -5,7 +5,7 @@ use crate::{ClientResult, errors::ClientError};
 
 use super::{
     Solapi,
-    types::{SolapiResponse, SolapiSetting, ToAlimtalkVariable},
+    types::{SolapiResponse, SolapiSetting},
 };
 
 #[derive(Debug, Serialize)]
@@ -60,12 +60,12 @@ struct KakaoOption {
 }
 
 pub trait SolapiMessaging {
-    async fn send_alimtalks(
+    fn send_alimtalks(
         &self,
         template_id: &str,
         receivers: &Vec<String>,
         variables: &Vec<HashMap<String, String>>,
-    ) -> ClientResult<SolapiResponse<()>>;
+    ) -> impl Future<Output = ClientResult<SolapiResponse<()>>>;
 }
 
 impl SolapiMessaging for Solapi {

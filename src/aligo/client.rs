@@ -67,18 +67,18 @@ impl Into<multipart::Form> for MmsBody {
 }
 
 pub trait AligoMessaging {
-    async fn send_sms(
+    fn send_sms(
         &self,
         receivers: &Vec<&str>,
         messages: &Vec<&str>,
         message_type: &str,
-    ) -> ClientResult<AligoResponse>;
-    async fn send_mms(
+    ) -> impl Future<Output = ClientResult<AligoResponse>>;
+    fn send_mms(
         &self,
         receiver: &str,
         message: &str,
         image_path: &str,
-    ) -> ClientResult<AligoResponse>;
+    ) -> impl Future<Output = ClientResult<AligoResponse>>;
 }
 
 impl AligoMessaging for AligoAPI {

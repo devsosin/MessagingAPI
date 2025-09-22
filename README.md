@@ -48,20 +48,65 @@ ALIGO_SENDER_NUMBER=
 ALIGO_TEST=Y/N
 ```
 
-## Trait Result Examples
+## Run Examples
 
-> ### ToEmailVariable Result
+### Email
 
-```
-{
-    "{{variableName}}": "value"
+```rs
+async fn test_email() {
+    let mail_sender = EmailConfig::from_env().to_sender();
+
+    let subject = "this mail is sent from rust";
+    let content = "";
+
+    // Send the email
+    let result = mail_sender
+        .send_email(
+            &Some("test1".into()), // receiver name (optional)
+            "test1234@gmail.com", // receiver address
+            subject,
+            content,
+            false, // is_html
+        )
+        .await;
+    println!("{:?}", result);
 }
 ```
 
-> ### ToAlimtalkVariable Result
+### Solapi
 
+```rs
+async fn test_solapi() {
+    let solapi = SolapiConfig::from_env().to_sender();
+    let receivers = vec!["00012345678".to_string(), "00023456789".to_string()];
+    let template_id = "test_template";
+    let mut variable1 = HashMap::new();
+    variable1.insert("#{회원명}".into(), "테스트".into());
+    let mut variable2 = HashMap::new();
+    variable2.insert("#{회원명}".into(), "테스트".into());
+
+    let variables = vec![variable1, variable2];
+
+    let response = api
+        .send_alimtalks(template_id, &receivers, &variables)
+        .await;
+
+    println!("{:?}", response);
+}
 ```
-{
-    "#{variableName}": "value"
+
+### Aligo
+
+```rs
+async fn test_aligo() {
+    let api = AligoConfig::from_env().to_sender();
+    let receiver_list = vec!["00012345678", "00023456789"];
+    let message_list = vec!["Test 1", "Test 2"];
+
+    let res = api.send_sms(&receiver_list, &message_list, "sms").await;
+    println!("{:?}", res);
+
+    let res = api.send_mms("01012345678", "Test 1", "https://png.pngtree.com/thumb_back/fh260/background/20230613/pngtree-small-white-rabbit-in-the-grass-image_2915502.jpg").await;
+    println!("{:?}", res);
 }
 ```

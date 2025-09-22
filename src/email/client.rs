@@ -1,6 +1,6 @@
 use lettre::message::Mailbox;
 
-use crate::{ClientResult, email::types::ReceiverGetter};
+use crate::ClientResult;
 
 use super::EmailSender;
 
@@ -9,9 +9,10 @@ pub trait EmailMessaging {
     // use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
     // you can suppress this lint if you plan to use the trait only in your own code,
     // or do not care about auto traits like `Send` on the `Future`
-    fn send_email<R: ReceiverGetter>(
+    fn send_email(
         &self,
-        receiver: &R,
+        receiver_name: &Option<String>,
+        receiver_email: &str,
         subject: &str,
         content: &str,
         is_html: bool,
@@ -19,17 +20,15 @@ pub trait EmailMessaging {
 }
 
 impl EmailMessaging for EmailSender {
-    async fn send_email<R: ReceiverGetter>(
+    async fn send_email(
         &self,
-        receiver: &R,
+        receiver_name: &Option<String>,
+        receiver_email: &str,
         subject: &str,
         content: &str,
         is_html: bool,
     ) -> ClientResult<()> {
-        let receiver_mailbox = Mailbox::new(
-            receiver.get_name().to_owned(),
-            receiver.get_address().parse().unwrap(),
-        );
+        let receiver_mailbox = Mailbox::new(receiver_name.clone(), receiver_email.parse().unwrap());
 
         self.send(&receiver_mailbox, subject, is_html, content)
             .await

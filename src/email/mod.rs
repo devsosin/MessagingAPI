@@ -1,7 +1,6 @@
 pub mod client;
 pub mod config;
 mod provider;
-pub mod types;
 
 use std::time::Duration;
 

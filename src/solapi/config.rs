@@ -4,6 +4,8 @@ use chrono::{SecondsFormat, Utc};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+use crate::solapi::Solapi;
+
 use super::utils::get_uuid;
 
 pub struct SolapiConfig {
@@ -65,6 +67,10 @@ impl SolapiConfig {
     }
     pub(crate) fn get_from(&self) -> &str {
         &self.sender_number
+    }
+
+    pub fn to_sender(self) -> Solapi {
+        Solapi::new(self)
     }
 }
 

@@ -2,6 +2,8 @@ use std::{env, fmt::Debug};
 
 use serde::Serialize;
 
+use crate::aligo::AligoAPI;
+
 use super::types::AligoRequest;
 
 #[derive(Debug)]
@@ -38,5 +40,9 @@ impl AligoConfig {
             &self.is_test,
             data,
         )
+    }
+
+    pub fn to_sender(self) -> AligoAPI {
+        AligoAPI::new(self)
     }
 }

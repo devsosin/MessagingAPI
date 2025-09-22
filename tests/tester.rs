@@ -33,21 +33,14 @@ mod solapi_tests {
 
         let config = SolapiConfig::from_env();
         let api = Solapi::new(config);
-        let receivers = vec!["00012345678", "00023456789"];
+        let receivers = vec!["00012345678".to_string(), "00023456789".to_string()];
         let template_id = "test_template";
+        let mut variable1 = HashMap::new();
+        variable1.insert("#{회원명}".into(), "테스트".into());
+        let mut variable2 = HashMap::new();
+        variable2.insert("#{회원명}".into(), "테스트".into());
 
-        struct SampleVariable {}
-        impl ToAlimtalkVariable for SampleVariable {
-            fn to_map(&self) -> HashMap<String, String> {
-                let mut variable = HashMap::new();
-
-                variable.insert("#{회원명}".into(), "테스트".into());
-
-                variable
-            }
-        }
-
-        let variables = vec![SampleVariable {}, SampleVariable {}];
+        let variables = vec![variable1, variable2];
 
         let response = api
             .send_alimtalks(template_id, &receivers, &variables)
@@ -68,8 +61,7 @@ mod aligo_tests {
         use dotenv::dotenv;
         dotenv().ok();
 
-        let config = AligoConfig::from_env();
-        let api = AligoAPI::new(config);
+        let api = AligoConfig::from_env().to_sender();
         let receiver_list = vec!["00012345678", "00023456789"];
         let message_list = vec!["Test 1", "Test 2"];
 
@@ -83,9 +75,7 @@ mod aligo_tests {
 
 #[cfg(feature = "email")]
 mod email_tests {
-    use messaging::email::{
-        EmailSender, client::EmailMessaging, config::EmailConfig, types::ReceiverGetter,
-    };
+    use messaging::email::{EmailSender, client::EmailMessaging, config::EmailConfig};
     use std::collections::HashMap;
     use tokio::fs;
 
@@ -94,34 +84,20 @@ mod email_tests {
         use dotenv::dotenv;
         dotenv().ok();
 
-        let config = EmailConfig::from_env();
-        let mail_sender = EmailSender::new(config);
-
-        struct MyReceiver {
-            name: Option<String>,
-            address: String,
-        }
-
-        impl ReceiverGetter for MyReceiver {
-            fn get_name(&self) -> &Option<String> {
-                &self.name
-            }
-            fn get_address(&self) -> &str {
-                &self.address
-            }
-        }
-
-        let to_info = MyReceiver {
-            name: Some("test1".into()),
-            address: "test1234@gmail.com".into(),
-        };
+        let mail_sender = EmailConfig::from_env().to_sender();
 
         let subject = "this mail is sent from rust";
         let content = "";
 
         // Send the email
         let result = mail_sender
-            .send_email(&to_info, subject, content, false)
+            .send_email(
+                &Some("test1".into()),
+                "test1234@gmail.com",
+                subject,
+                content,
+                false,
+            )
             .await;
         println!("{:?}", result);
     }
