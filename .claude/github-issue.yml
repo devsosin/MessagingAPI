@@ -1,0 +1,33 @@
+repo: devsosin/MessagingAPI
+language: ko
+title_format: "[{id}] {summary}"
+id_prefixes: [MSG]
+
+labels:
+  type: [bug, enhancement, documentation]
+  areas:
+    - name: "provider:aligo"
+      color: 1d76db
+      description: Aligo 문자(SMS/LMS/MMS)
+      when: src/aligo/ 가 대상일 때
+    - name: "provider:solapi"
+      color: 5319e7
+      description: Solapi 알림톡
+      when: src/solapi/ 가 대상일 때
+    - name: "provider:email"
+      color: 0e8a16
+      description: SMTP 이메일
+      when: src/email/ 가 대상일 때
+  review:
+    name: needs-review
+    color: d93f0b
+    description: 사용자 검토·결정이 필요한 항목이 있음
+  on_hold:
+    name: "status:on-hold"
+    color: bfbfbf
+    description: 사용자 결정으로 보류
+
+verify:
+  - cargo test --all-features
+
+decided: 2026-11-06
