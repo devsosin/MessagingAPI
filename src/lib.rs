@@ -15,6 +15,16 @@ pub mod solapi;
 
 pub mod errors;
 
+#[cfg(any(feature = "aligo", feature = "solapi"))]
+pub mod types;
+
+#[allow(dead_code)]
+mod env;
+
+#[cfg(any(feature = "aligo", feature = "solapi"))]
+#[allow(dead_code)]
+mod http;
+
 use crate::errors::ClientError;
 
 pub type ClientResult<T> = Result<T, ClientError>;
