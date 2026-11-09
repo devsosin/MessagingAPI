@@ -22,7 +22,6 @@ pub mod types;
 mod env;
 
 #[cfg(any(feature = "aligo", feature = "solapi"))]
-#[allow(dead_code)]
 mod http;
 
 use crate::errors::ClientError;

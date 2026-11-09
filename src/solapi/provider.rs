@@ -1,47 +1,61 @@
-use std::fmt::Debug;
+use reqwest::{RequestBuilder, Response, header::AUTHORIZATION};
+use serde::de::DeserializeOwned;
 
-use reqwest::{StatusCode, header::AUTHORIZATION};
-use serde::Serialize;
-
-use crate::ClientResult;
+use crate::{
+    http,
+    types::{Failure, Outcome},
+};
 
 use super::{
     Solapi,
-    types::{SolapiErrorResponse, SolapiRequest, SolapiResponse, SolapiSetting},
+    types::{ErrorResponse, SendManyBody, SendManyResponse, SendReceipt},
 };
 
-fn is_ok(status_code: &StatusCode) -> bool {
-    status_code.as_u16() < 400
+impl Solapi {
+    fn request(&self, method: reqwest::Method, uri: &str) -> RequestBuilder {
+        self.client
+            .request(method, format!("{}/{uri}", self.base_url))
+            .header(AUTHORIZATION, self.config.authorization())
+    }
+
+    /// `messages/v4/send-many`. A refusal comes back as an HTTP error with `errorCode`.
+    pub(super) async fn post_send_many(&self, body: &SendManyBody<'_>) -> Outcome<SendReceipt> {
+        let res = match self
+            .request(reqwest::Method::POST, "messages/v4/send-many")
+            .json(body)
+            .send()
+            .await
+        {
+            Ok(res) => res,
+            Err(err) => return http::send_error(&err),
+        };
+        if !res.status().is_success() {
+            return Outcome::Failed(failure(res).await);
+        }
+        // Accepted, but an unreadable answer says nothing about what went out.
+        match res.json::<SendManyResponse>().await {
+            Ok(body) => body.into_outcome(),
+            Err(_) => Outcome::Unknown,
+        }
+    }
+
+    /// A GET without side effects.
+    pub(super) async fn get<T: DeserializeOwned>(&self, uri: &str) -> Result<T, Failure> {
+        let res = self
+            .request(reqwest::Method::GET, uri)
+            .send()
+            .await
+            .map_err(http::read_error)?;
+        if !res.status().is_success() {
+            return Err(failure(res).await);
+        }
+        res.json().await.map_err(http::read_error)
+    }
 }
 
-impl Solapi {
-    pub(crate) async fn send_many<T: Serialize + Debug + SolapiSetting>(
-        &self,
-        uri: &str,
-        mut data: T,
-    ) -> ClientResult<SolapiResponse<()>> {
-        data.set_info(self.config.get_from(), self.config.get_pf_id());
-        let body = SolapiRequest::new(data);
-
-        let res = self
-            .client
-            .post(format!("https://api.solapi.com/{uri}"))
-            .header(AUTHORIZATION, self.config.get_authorization())
-            .json(&body)
-            .send()
-            .await?;
-
-        let result: ClientResult<SolapiResponse<()>> = match is_ok(&res.status()) {
-            true => res.json::<SolapiResponse<()>>().await.map_err(|e| e.into()),
-            false => {
-                let err_response = res.json::<SolapiErrorResponse>().await.unwrap();
-
-                Err(err_response.into())
-            }
-        };
-
-        // println!("{:?}", result);
-
-        Ok(result?)
-    }
+async fn failure(res: Response) -> Failure {
+    let status = res.status().as_u16();
+    // An error page that is not JSON still carries the status.
+    let body = res.json::<ErrorResponse>().await.unwrap_or_default();
+    body.into_failure(status)
 }

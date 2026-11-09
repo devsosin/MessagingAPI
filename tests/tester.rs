@@ -11,42 +11,30 @@ async fn test_serde() {
 
 #[cfg(feature = "solapi")]
 mod solapi_tests {
-    use messaging::solapi::{
-        Solapi, client::SolapiMessaging, config::SolapiConfig, types::ToAlimtalkVariable,
-    };
-    use rustc_version::version;
-    use std::{collections::HashMap, env::consts};
+    use messaging::solapi::{config::SolapiConfig, types::Alimtalk};
 
+    /// Sends a real alimtalk with the account in `.env` (charged, the receiver gets it):
+    /// `cargo test --features solapi -- --ignored test_solapi`
     #[tokio::test]
-    async fn test_os() {
-        let os_info = consts::OS;
-        let version = version().unwrap();
-
-        println!("{}", os_info);
-        println!("{}", version);
-    }
-
-    #[tokio::test]
+    #[ignore = "sends a real message through Solapi"]
     async fn test_solapi() {
         use dotenv::dotenv;
         dotenv().ok();
 
-        let config = SolapiConfig::from_env();
-        let api = Solapi::new(config);
-        let receivers = vec!["00012345678".to_string(), "00023456789".to_string()];
-        let template_id = "test_template";
-        let mut variable1 = HashMap::new();
-        variable1.insert("#{회원명}".into(), "테스트".into());
-        let mut variable2 = HashMap::new();
-        variable2.insert("#{회원명}".into(), "테스트".into());
+        let api = SolapiConfig::from_env()
+            .expect("solapi env")
+            .to_sender()
+            .expect("solapi client");
 
-        let variables = vec![variable1, variable2];
-
-        let response = api
-            .send_alimtalks(template_id, &receivers, &variables)
-            .await;
-
+        let talks = [
+            Alimtalk::new("00012345678", "test_template", [("회원명", "테스트")]),
+            Alimtalk::new("00023456789", "test_template", [("회원명", "테스트")]),
+        ];
+        let response = api.send_alimtalks(&talks).await;
         println!("{:?}", response);
+
+        let balance = api.balance().await;
+        println!("{:?}", balance);
     }
 }
 

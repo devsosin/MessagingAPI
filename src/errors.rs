@@ -13,8 +13,6 @@ pub enum ClientError {
     #[error("Invalid data: {0}")]
     InvalidData(&'static str),
 
-    #[error("Solapi Error: {0}")]
-    SolapiError(String),
     #[error("Email Error: {0}")]
     EmailError(String),
 

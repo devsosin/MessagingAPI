@@ -10,12 +10,10 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 
-chrono = { version = "0.4.41", optional = true }
-uuid = { version = "1.18.0", features = ["v4"], optional = true }
-hmac = { version = "0.12.1", optional = true }
-sha2 = { version = "0.10.9", optional = true }
-hex = { version = "0.4.3", optional = true }
-rustc_version = { version = "0.4.1", optional = true }
+time = { version = "0.3", features = ["formatting", "macros"], optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
+hmac = { version = "0.13", optional = true }
+sha2 = { version = "0.11", optional = true }
 
 lettre = { version = "0.11.18", default-features = false, features = [
     "builder",
@@ -33,4 +31,4 @@ dotenv = "0.15.0"
 [features]
 email = ["lettre"]
 aligo = ["dep:reqwest", "reqwest/form", "reqwest/multipart"]
-solapi = ["dep:reqwest", "rustc_version", "hex", "sha2", "hmac", "uuid", "chrono"]
+solapi = ["dep:reqwest", "dep:time", "dep:uuid", "dep:hmac", "dep:sha2"]
