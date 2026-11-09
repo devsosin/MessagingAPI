@@ -18,7 +18,7 @@ pub mod errors;
 #[cfg(any(feature = "aligo", feature = "solapi"))]
 pub mod types;
 
-#[allow(dead_code)]
+#[cfg(any(feature = "aligo", feature = "solapi", feature = "email"))]
 mod env;
 
 #[cfg(any(feature = "aligo", feature = "solapi"))]

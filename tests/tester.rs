@@ -73,30 +73,32 @@ mod aligo_tests {
 
 #[cfg(feature = "email")]
 mod email_tests {
-    use messaging::email::{EmailSender, client::EmailMessaging, config::EmailConfig};
-    use std::collections::HashMap;
-    use tokio::fs;
+    use messaging::email::{
+        config::EmailConfig,
+        types::{BodyType, Email},
+    };
 
+    /// Sends a real email with the account in `.env`:
+    /// `cargo test --features email -- --ignored test_email`
     #[tokio::test]
+    #[ignore = "sends a real email"]
     async fn test_email() {
         use dotenv::dotenv;
         dotenv().ok();
 
-        let mail_sender = EmailConfig::from_env().to_sender();
+        let mail_sender = EmailConfig::from_env()
+            .expect("email env")
+            .to_sender()
+            .expect("email sender");
 
-        let subject = "this mail is sent from rust";
-        let content = "";
-
-        // Send the email
-        let result = mail_sender
-            .send_email(
-                &Some("test1".into()),
-                "test1234@gmail.com",
-                subject,
-                content,
-                false,
-            )
-            .await;
+        let email = Email::new(
+            "test1234@gmail.com",
+            "this mail is sent from rust",
+            "",
+            BodyType::Text,
+        )
+        .receiver_name("test1");
+        let result = mail_sender.send_email(&email).await;
         println!("{:?}", result);
     }
 }

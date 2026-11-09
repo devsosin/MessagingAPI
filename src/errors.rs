@@ -13,9 +13,10 @@ pub enum ClientError {
     #[error("Invalid data: {0}")]
     InvalidData(&'static str),
 
-    #[error("Email Error: {0}")]
-    EmailError(String),
-
-    #[error("Internal error: {0}")]
-    InternalError(&'static str),
+    #[cfg(feature = "email")]
+    #[error("SMTP error: {0}")]
+    Smtp(#[from] lettre::transport::smtp::Error),
+    #[cfg(feature = "email")]
+    #[error("Email message error: {0}")]
+    EmailMessage(#[from] lettre::error::Error),
 }

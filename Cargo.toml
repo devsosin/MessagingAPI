@@ -15,12 +15,13 @@ uuid = { version = "1", features = ["v4"], optional = true }
 hmac = { version = "0.13", optional = true }
 sha2 = { version = "0.11", optional = true }
 
-lettre = { version = "0.11.18", default-features = false, features = [
+lettre = { version = "0.11.23", default-features = false, features = [
     "builder",
     "smtp-transport",
     "pool",
-    "tokio1",
-    "tokio1-native-tls",
+    "tokio1-rustls",
+    "aws-lc-rs",
+    "webpki-roots",
 ], optional = true }
 
 thiserror = "2.0.16"
@@ -29,6 +30,6 @@ thiserror = "2.0.16"
 dotenv = "0.15.0"
 
 [features]
-email = ["lettre"]
+email = ["dep:lettre"]
 aligo = ["dep:reqwest", "reqwest/form", "reqwest/multipart"]
 solapi = ["dep:reqwest", "dep:time", "dep:uuid", "dep:hmac", "dep:sha2"]
