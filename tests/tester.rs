@@ -1,13 +1,5 @@
-use serde_json::json;
-
-#[tokio::test]
-async fn test_serde() {
-    let value = json!({
-        "test": 'Y'
-    });
-
-    println!("{value}");
-}
+//! Live tests against the real providers. All are `#[ignore]`: they need the accounts in `.env`
+//! and may send real messages. Run one with `cargo test --features <name> -- --ignored <test>`.
 
 #[cfg(feature = "solapi")]
 mod solapi_tests {
