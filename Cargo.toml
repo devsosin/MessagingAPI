@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1.47.1", features = ["full"] }
-tokio-util = { version = "0.7.16", features = ["codec"], optional = true }
 
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"], optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
@@ -33,5 +32,5 @@ dotenv = "0.15.0"
 
 [features]
 email = ["lettre"]
-aligo = ["dep:reqwest", "reqwest/form", "reqwest/multipart", "tokio-util"]
+aligo = ["dep:reqwest", "reqwest/form", "reqwest/multipart"]
 solapi = ["dep:reqwest", "rustc_version", "hex", "sha2", "hmac", "uuid", "chrono"]

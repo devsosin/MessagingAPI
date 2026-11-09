@@ -1,126 +1,38 @@
-use std::{collections::HashMap, iter::zip};
+use crate::{
+    ClientResult,
+    types::{Failure, Outcome},
+};
 
-use reqwest::multipart;
-use serde::Serialize;
+use super::{
+    AligoAPI,
+    types::{Remain, SendReceipt, TextMessage, TextType, image_fields, mass_fields},
+};
 
-use crate::ClientResult;
-
-use super::{AligoAPI, types::AligoResponse};
-
-enum MessageType {
-    SMS,
-    LMS,
-    MMS,
-}
-
-impl Into<String> for MessageType {
-    fn into(self) -> String {
-        let v = match self {
-            MessageType::SMS => "SMS",
-            MessageType::LMS => "LMS",
-            MessageType::MMS => "MMS",
-        };
-
-        v.to_uppercase()
-    }
-}
-
-impl From<&str> for MessageType {
-    fn from(value: &str) -> Self {
-        match value.to_lowercase().as_str() {
-            "sms" => Self::SMS,
-            "lms" => Self::LMS,
-            "mms" => Self::MMS,
-            _ => panic!("Unknown Message Type"),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Clone)]
-struct SmsBody {
-    cnt: usize,
-    msg_type: String, // SMS, LMS
-    #[serde(flatten)]
-    msg_body: HashMap<String, String>,
-}
-
-impl Into<multipart::Form> for SmsBody {
-    fn into(self) -> multipart::Form {
-        multipart::Form::new()
-    }
-}
-
-#[derive(Debug, Serialize, Clone)]
-struct MmsBody {
-    receiver: String,
-    msg: String,
-    msg_type: String,
-}
-
-impl Into<multipart::Form> for MmsBody {
-    fn into(self) -> multipart::Form {
-        multipart::Form::new()
-            .text("receiver", self.receiver.to_owned())
-            .text("msg", self.msg.to_owned())
-            .text("msg_type", self.msg_type.to_owned())
-    }
-}
-
-pub trait AligoMessaging {
-    fn send_sms(
+impl AligoAPI {
+    /// Sends up to 500 texts in one request (`send_mass/`). Invalid input is an error before
+    /// anything is sent; Aligo's answer is the [`Outcome`].
+    pub async fn send_mass(
         &self,
-        receivers: &Vec<&str>,
-        messages: &Vec<&str>,
-        message_type: &str,
-    ) -> impl Future<Output = ClientResult<AligoResponse>>;
-    fn send_mms(
+        messages: &[TextMessage],
+        text_type: TextType,
+    ) -> ClientResult<Outcome<SendReceipt>> {
+        let fields = mass_fields(messages, text_type)?;
+        Ok(self.send_form("send_mass/", fields).await)
+    }
+
+    /// Sends one image message (`send/`, MMS) with a JPEG attached.
+    pub async fn send_image(
         &self,
         receiver: &str,
         message: &str,
-        image_path: &str,
-    ) -> impl Future<Output = ClientResult<AligoResponse>>;
-}
-
-impl AligoMessaging for AligoAPI {
-    async fn send_sms(
-        &self,
-        receivers: &Vec<&str>,
-        messages: &Vec<&str>,
-        message_type: &str,
-    ) -> ClientResult<AligoResponse> {
-        let msg_type: MessageType = message_type.into();
-
-        let mut msg_body = HashMap::new();
-
-        for (i, (rec, msg)) in zip(receivers, messages).enumerate() {
-            let i = i + 1;
-            msg_body.insert(format!("rec_{i}"), rec.to_string());
-            msg_body.insert(format!("msg_{i}"), msg.to_string());
-        }
-
-        let data = SmsBody {
-            cnt: msg_body.len() / 2,
-            msg_type: msg_type.into(),
-            msg_body,
-        };
-
-        self.send("send_mass/", data, None).await
+        jpeg: Vec<u8>,
+    ) -> ClientResult<Outcome<SendReceipt>> {
+        self.send_with_image("send/", image_fields(receiver, message), jpeg)
+            .await
     }
 
-    async fn send_mms(
-        &self,
-        receiver: &str,
-        message: &str,
-        image_path: &str,
-    ) -> ClientResult<AligoResponse> {
-        let msg_type = MessageType::MMS;
-
-        let data = MmsBody {
-            receiver: receiver.into(),
-            msg: message.into(),
-            msg_type: msg_type.into(),
-        };
-
-        self.send("send/", data, Some(image_path)).await
+    /// Remaining sendable counts (`remain/`). No side effect, so it also serves as a connection test.
+    pub async fn remain(&self) -> Result<Remain, Failure> {
+        self.fetch_remain().await
     }
 }

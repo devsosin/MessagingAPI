@@ -52,23 +52,33 @@ mod solapi_tests {
 
 #[cfg(feature = "aligo")]
 mod aligo_tests {
-    use messaging::aligo::AligoAPI;
-    use messaging::aligo::client::AligoMessaging;
-    use messaging::aligo::config::AligoConfig;
+    use messaging::aligo::{
+        config::AligoConfig,
+        types::{TextMessage, TextType},
+    };
 
+    /// Calls the real Aligo API with the account in `.env` (test mode, nothing is charged):
+    /// `cargo test --features aligo -- --ignored test_aligo`
     #[tokio::test]
+    #[ignore = "calls the real Aligo API"]
     async fn test_aligo() {
         use dotenv::dotenv;
         dotenv().ok();
 
-        let api = AligoConfig::from_env().to_sender();
-        let receiver_list = vec!["00012345678", "00023456789"];
-        let message_list = vec!["Test 1", "Test 2"];
+        let api = AligoConfig::from_env()
+            .expect("aligo env")
+            .test_mode(true)
+            .to_sender()
+            .expect("aligo client");
 
-        let res = api.send_sms(&receiver_list, &message_list, "sms").await;
+        let messages = [
+            TextMessage::new("00012345678", "Test 1"),
+            TextMessage::new("00023456789", "Test 2"),
+        ];
+        let res = api.send_mass(&messages, TextType::Sms).await;
         println!("{:?}", res);
 
-        let res = api.send_mms("01012345678", "Test 1", "https://png.pngtree.com/thumb_back/fh260/background/20230613/pngtree-small-white-rabbit-in-the-grass-image_2915502.jpg").await;
+        let res = api.remain().await;
         println!("{:?}", res);
     }
 }
