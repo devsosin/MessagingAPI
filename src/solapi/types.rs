@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::types::{Failure, FailureKind, Outcome};
 
@@ -98,6 +98,7 @@ pub struct MessageStatus {
     to: Option<String>,
     #[serde(default, rename = "type")]
     message_type: Option<String>,
+    #[serde(deserialize_with = "code_text")]
     status_code: String,
     #[serde(default, alias = "reason")]
     status_message: String,
@@ -137,6 +138,125 @@ impl MessageStatus {
         format!("{} {}", self.status_code, self.status_message)
             .trim()
             .to_owned()
+    }
+
+    pub fn class(&self) -> StatusClass {
+        StatusClass::of(&self.status_code)
+    }
+}
+
+/// A status code may come as a string (`"4000"`) or a number.
+fn code_text<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Code {
+        Text(String),
+        Number(i64),
+    }
+    Ok(match Code::deserialize(deserializer)? {
+        Code::Text(s) => s,
+        Code::Number(n) => n.to_string(),
+    })
+}
+
+/// Solapi status codes by class. The fine-grained codes are not consistent enough to rely on (the
+/// official example pairs `3040` with "등록되지 않은 발신번호" while the code table says 전송시간 초과),
+/// so decisions use the class only and keep the code and message for display.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusClass {
+    /// `2000` accepted, `3000` handed to the carrier and waiting for its report.
+    InProgress,
+    /// `4000`.
+    Received,
+    /// Every other code: `1xxx` at registration, `2xxx` in Solapi, `3xxx` at the carrier or Kakao.
+    Failed,
+}
+
+impl StatusClass {
+    pub fn of(code: &str) -> Self {
+        match code {
+            "2000" | "3000" => Self::InProgress,
+            "4000" => Self::Received,
+            _ => Self::Failed,
+        }
+    }
+}
+
+/// Whether a group reached its receivers, counting Solapi's text fallback for a failed Kakao message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Delivery {
+    /// Some message (the Kakao one, or its fallback text) is still in progress.
+    InProgress,
+    /// Every Kakao message was received.
+    Delivered,
+    /// A Kakao message failed and the fallback text was received.
+    DeliveredByFallback {
+        failed: Vec<MessageStatus>,
+        fallback: Vec<MessageStatus>,
+    },
+    /// A Kakao message failed and there is no fallback text, or not yet: Solapi may add it a moment
+    /// after the failure, so the caller decides how long to wait before treating this as final.
+    FailedWithoutFallback { failed: Vec<MessageStatus> },
+    /// A Kakao message failed and its fallback text failed too.
+    Failed {
+        failed: Vec<MessageStatus>,
+        fallback_failed: Vec<MessageStatus>,
+    },
+}
+
+impl Delivery {
+    /// Reads a group's messages (`messages/v4/list`).
+    pub fn evaluate(messages: &[MessageStatus]) -> Self {
+        let (fallback, originals): (Vec<&MessageStatus>, Vec<&MessageStatus>) =
+            messages.iter().partition(|m| m.is_replacement());
+        let in_progress =
+            |list: &[&MessageStatus]| list.iter().any(|m| m.class() == StatusClass::InProgress);
+        let failed_of = |list: &[&MessageStatus]| -> Vec<MessageStatus> {
+            list.iter()
+                .filter(|m| m.class() == StatusClass::Failed)
+                .map(|m| (*m).clone())
+                .collect()
+        };
+
+        if originals.is_empty() || in_progress(&originals) {
+            return Self::InProgress;
+        }
+        let failed = failed_of(&originals);
+        if failed.is_empty() {
+            return Self::Delivered;
+        }
+        if fallback.is_empty() {
+            return Self::FailedWithoutFallback { failed };
+        }
+        if in_progress(&fallback) {
+            return Self::InProgress;
+        }
+        let fallback_failed = failed_of(&fallback);
+        if fallback_failed.is_empty() {
+            Self::DeliveredByFallback {
+                failed,
+                fallback: fallback.into_iter().cloned().collect(),
+            }
+        } else {
+            Self::Failed {
+                failed,
+                fallback_failed,
+            }
+        }
+    }
+}
+
+/// `messages/v4/list` answer: messages keyed by message id.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct MessageListResponse {
+    #[serde(default)]
+    message_list: BTreeMap<String, MessageStatus>,
+}
+
+impl MessageListResponse {
+    pub(super) fn into_messages(self) -> Vec<MessageStatus> {
+        self.message_list.into_values().collect()
     }
 }
 
@@ -354,5 +474,101 @@ mod tests {
             json!({ "errorCode": "NotEnoughBalance", "errorMessage": "잔액이 부족합니다" }),
         );
         assert_eq!(money.kind(), FailureKind::LowBalance);
+    }
+
+    fn status(kind: &str, code: &str, reason: &str, replacement: bool) -> MessageStatus {
+        serde_json::from_value(json!({
+            "type": kind, "statusCode": code, "reason": reason, "replacement": replacement
+        }))
+        .expect("message status")
+    }
+
+    fn talk(code: &str, reason: &str) -> MessageStatus {
+        status("ATA", code, reason, false)
+    }
+
+    fn text(code: &str, reason: &str) -> MessageStatus {
+        status("LMS", code, reason, true)
+    }
+
+    #[test]
+    fn status_classes_follow_code_classes() {
+        assert_eq!(StatusClass::of("2000"), StatusClass::InProgress);
+        assert_eq!(StatusClass::of("3000"), StatusClass::InProgress);
+        assert_eq!(StatusClass::of("4000"), StatusClass::Received);
+        for failed in ["1030", "2061", "2230", "3059", "3104", "3107"] {
+            assert_eq!(StatusClass::of(failed), StatusClass::Failed, "{failed}");
+        }
+        // Codes may come as numbers.
+        let numeric: MessageStatus =
+            serde_json::from_value(json!({ "statusCode": 4000 })).expect("numeric code");
+        assert_eq!(numeric.class(), StatusClass::Received);
+    }
+
+    #[test]
+    fn kakao_results() {
+        assert_eq!(
+            Delivery::evaluate(&[talk("4000", "수신 완료")]),
+            Delivery::Delivered
+        );
+        assert_eq!(
+            Delivery::evaluate(&[talk("2000", "정상 접수")]),
+            Delivery::InProgress
+        );
+        // 3000 = handed to the carrier, report not back yet: not a failure.
+        assert_eq!(
+            Delivery::evaluate(&[talk("3000", "이통사로 접수")]),
+            Delivery::InProgress
+        );
+        assert_eq!(Delivery::evaluate(&[]), Delivery::InProgress);
+        // 2xxx other than 2000 is an error, not "in progress".
+        assert_eq!(
+            Delivery::evaluate(&[talk("2061", "수신거부")]),
+            Delivery::FailedWithoutFallback {
+                failed: vec![talk("2061", "수신거부")]
+            }
+        );
+    }
+
+    #[test]
+    fn failed_kakao_follows_the_fallback_text() {
+        let unreachable = talk("3107", "카카오톡 미사용자");
+        // Fallback still with the carrier: wait.
+        assert_eq!(
+            Delivery::evaluate(&[unreachable.clone(), text("3000", "이통사로 접수")]),
+            Delivery::InProgress
+        );
+        assert_eq!(
+            Delivery::evaluate(&[unreachable.clone(), text("4000", "수신 완료")]),
+            Delivery::DeliveredByFallback {
+                failed: vec![unreachable.clone()],
+                fallback: vec![text("4000", "수신 완료")],
+            }
+        );
+        assert_eq!(
+            Delivery::evaluate(&[unreachable.clone(), text("3043", "단말기 Power off")]),
+            Delivery::Failed {
+                failed: vec![unreachable.clone()],
+                fallback_failed: vec![text("3043", "단말기 Power off")],
+            }
+        );
+        assert_eq!(unreachable.describe(), "3107 카카오톡 미사용자");
+    }
+
+    #[test]
+    fn message_list_reads_keyed_messages() {
+        let list: MessageListResponse = serde_json::from_value(json!({
+            "messageList": {
+                "M1": { "type": "ATA", "statusCode": "3105", "reason": "미등록 템플릿", "replacement": false },
+                "M2": { "type": "LMS", "statusCode": "4000", "reason": "수신 완료", "replacement": true }
+            }
+        }))
+        .expect("message list");
+        let messages = list.into_messages();
+        assert_eq!(messages.len(), 2);
+        assert!(matches!(
+            Delivery::evaluate(&messages),
+            Delivery::DeliveredByFallback { .. }
+        ));
     }
 }
