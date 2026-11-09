@@ -1,33 +1,40 @@
 pub mod client;
 pub mod config;
 mod provider;
+pub mod types;
 
 use std::time::Duration;
 
+use lettre::{AsyncSmtpTransport, Tokio1Executor, message::Mailbox, transport::smtp::PoolConfig};
+
+use crate::ClientResult;
+
 use config::EmailConfig;
-use lettre::{AsyncSmtpTransport, Tokio1Executor, transport::smtp::PoolConfig};
+
+const POOL_SIZE: u32 = 5;
+const POOL_IDLE: Duration = Duration::from_secs(60);
+const TIMEOUT: Duration = Duration::from_secs(20);
 
 pub struct EmailSender {
-    config: EmailConfig,
+    sender: Mailbox,
     mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 
 impl EmailSender {
-    pub fn new(config: EmailConfig) -> Self {
-        let creds = (&config).into();
-        let mail_server: &str = config.get_server().into();
-        let smtp_server = format!("smtp.{}.com", mail_server);
-
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&smtp_server)
-            .unwrap()
-            .credentials(creds)
+    /// Prepares a pooled STARTTLS connection to the account's SMTP server; nothing is sent yet.
+    pub fn new(config: EmailConfig) -> ClientResult<Self> {
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(config.server().host())?
+            .credentials(config.credentials())
+            .timeout(Some(TIMEOUT))
             .pool_config(
                 PoolConfig::new()
-                    .max_size(5) // Maximum Pool
-                    .idle_timeout(Duration::from_secs(60)), // idle time
+                    .max_size(POOL_SIZE)
+                    .idle_timeout(POOL_IDLE),
             )
             .build();
-
-        Self { config, mailer }
+        Ok(Self {
+            sender: config.sender()?,
+            mailer,
+        })
     }
 }

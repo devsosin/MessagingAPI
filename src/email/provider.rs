@@ -1,42 +1,25 @@
-use lettre::{
-    AsyncTransport,
-    message::{Mailbox, MessageBuilder, header::ContentType},
-};
+use lettre::{AsyncTransport, Message, message::Mailbox};
 
 use crate::{ClientResult, errors::ClientError};
 
-use super::EmailSender;
+use super::{EmailSender, types::Email};
 
 impl EmailSender {
-    pub(crate) async fn send(
-        &self,
-        receiver_mailbox: &Mailbox,
-        subject: &str,
-        is_html: bool,
-        content: &str,
-    ) -> ClientResult<()> {
-        let message_builder = Into::<MessageBuilder>::into(&self.config);
+    pub(super) fn build(&self, email: &Email) -> ClientResult<Message> {
+        let (name, address) = email.receiver();
+        let address = address
+            .parse()
+            .map_err(|_| ClientError::InvalidData("invalid receiver email"))?;
+        Ok(Message::builder()
+            .from(self.sender.clone())
+            .to(Mailbox::new(name.map(str::to_owned), address))
+            .subject(email.subject())
+            .header(email.body_type().content_type())
+            .body(email.body().to_owned())?)
+    }
 
-        let content_type: ContentType = match is_html {
-            true => ContentType::TEXT_HTML,
-            false => ContentType::TEXT_PLAIN,
-        };
-
-        let message = message_builder
-            .to(receiver_mailbox.to_owned())
-            .subject(subject)
-            .header(content_type)
-            .body(String::from(content))
-            .unwrap();
-
-        match self.mailer.send(message).await {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                let err_msg = format!("{:?}", e);
-                println!("{}", err_msg);
-
-                Err(ClientError::EmailError(err_msg))
-            }
-        }
+    pub(super) async fn deliver(&self, message: Message) -> ClientResult<()> {
+        self.mailer.send(message).await?;
+        Ok(())
     }
 }
