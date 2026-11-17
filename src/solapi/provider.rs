@@ -32,10 +32,9 @@ impl Solapi {
         if !res.status().is_success() {
             return Outcome::Failed(failure(res).await);
         }
-        // Accepted, but an unreadable answer says nothing about what went out.
-        match res.json::<SendManyResponse>().await {
+        match http::send_answer::<SendManyResponse>(res).await {
             Ok(body) => body.into_outcome(),
-            Err(_) => Outcome::Unknown,
+            Err(reason) => Outcome::Unknown(reason),
         }
     }
 

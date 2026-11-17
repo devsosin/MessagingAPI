@@ -87,13 +87,34 @@ impl fmt::Display for Failure {
     }
 }
 
-/// Outcome of a send. `Unknown` = the request may have reached the provider but no answer came back
-/// (a timeout); never retry it automatically, or the receiver may get the message twice.
+/// Outcome of a send. `Unknown` = the request may have reached the provider, but there is no answer
+/// to tell what went out; never retry it automatically, or the receiver may get the message twice.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome<T> {
     Sent(T),
     Failed(Failure),
-    Unknown,
+    Unknown(UnknownReason),
+}
+
+/// Why a send's outcome is unknown. The message may have gone out in every case.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnknownReason {
+    /// The request failed after it may have reached the provider (a timeout above all).
+    Transport(String),
+    /// The provider answered with success, but the answer could not be read.
+    UnreadableAnswer(String),
+    /// The answer was read but carried no group id to look the delivery up with (Solapi).
+    NoGroupId,
+}
+
+impl fmt::Display for UnknownReason {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnknownReason::Transport(detail) => write!(f, "no answer: {detail}"),
+            UnknownReason::UnreadableAnswer(detail) => write!(f, "unreadable answer: {detail}"),
+            UnknownReason::NoGroupId => f.write_str("answer without a group id"),
+        }
+    }
 }
 
 #[cfg(test)]

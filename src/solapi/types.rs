@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::types::{Failure, FailureKind, Outcome};
+use crate::types::{Failure, FailureKind, Outcome, UnknownReason};
 
 /// Most messages one `send-many` request takes.
 pub const MAX_MESSAGES: usize = 10_000;
@@ -335,7 +335,7 @@ impl SendManyResponse {
                 refused: self.failed_message_list,
             }),
             // Accepted, but nothing to look the result up with.
-            None => Outcome::Unknown,
+            None => Outcome::Unknown(UnknownReason::NoGroupId),
         }
     }
 }
