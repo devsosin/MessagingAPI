@@ -298,8 +298,11 @@ pub(super) struct SendManyResponse {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GroupInfo {
-    #[serde(default, alias = "_id")]
+    // Solapi sends both with the same value. An alias would reject the pair as a duplicate field.
+    #[serde(default)]
     group_id: Option<String>,
+    #[serde(default, rename = "_id")]
+    id: Option<String>,
     #[serde(default)]
     count: Count,
 }
@@ -325,7 +328,7 @@ impl SendManyResponse {
                 .unwrap_or_else(|| "every message was refused at registration".into());
             return Outcome::Failed(Failure::from_message(&detail));
         }
-        match group.group_id {
+        match group.group_id.or(group.id) {
             Some(group_id) => Outcome::Sent(SendReceipt {
                 group_id,
                 registered: group.count.registered_success,
@@ -450,6 +453,26 @@ mod tests {
         };
         assert_eq!(failure.kind(), FailureKind::LowBalance);
         assert_eq!(failure.detail(), "1030 잔액 부족");
+    }
+
+    #[test]
+    fn send_answer_reads_the_group_id_sent_with_its_id() {
+        // Solapi sends `_id` and `groupId` with the same value (MSG-002).
+        for answer in [
+            json!({ "groupInfo": { "_id": "G9", "groupId": "G9",
+                                   "count": { "registeredFailed": 0, "registeredSuccess": 2 } },
+                    "failedMessageList": [] }),
+            json!({ "_id": "G9", "groupId": "G9",
+                    "count": { "registeredFailed": 0, "registeredSuccess": 2 } }),
+            json!({ "groupInfo": { "_id": "G9",
+                                   "count": { "registeredFailed": 0, "registeredSuccess": 2 } } }),
+        ] {
+            let Outcome::Sent(receipt) = send_answer(answer.clone()) else {
+                panic!("expected sent: {answer}")
+            };
+            assert_eq!(receipt.group_id(), "G9");
+            assert_eq!(receipt.registered(), 2);
+        }
     }
 
     #[test]
