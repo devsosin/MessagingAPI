@@ -65,9 +65,9 @@ async fn send(request: RequestBuilder) -> Outcome<SendReceipt> {
     match request.send().await {
         // Aligo answers refusals with HTTP 200 and a negative `result_code`. An answer that cannot be
         // read says nothing about whether the message went out.
-        Ok(res) => match res.json::<AligoResponse>().await {
+        Ok(res) => match http::send_answer::<AligoResponse>(res).await {
             Ok(body) => body.into_send_outcome(),
-            Err(_) => Outcome::Unknown,
+            Err(reason) => Outcome::Unknown(reason),
         },
         Err(err) => http::send_error(&err),
     }
