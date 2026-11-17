@@ -18,10 +18,10 @@ impl Solapi {
             .header(AUTHORIZATION, self.config.authorization())
     }
 
-    /// `messages/v4/send-many`. A refusal comes back as an HTTP error with `errorCode`.
+    /// `messages/v4/send-many/detail`. A refusal comes back as an HTTP error with `errorCode`.
     pub(super) async fn post_send_many(&self, body: &SendManyBody<'_>) -> Outcome<SendReceipt> {
         let res = match self
-            .request(reqwest::Method::POST, "messages/v4/send-many")
+            .request(reqwest::Method::POST, "messages/v4/send-many/detail")
             .json(body)
             .send()
             .await

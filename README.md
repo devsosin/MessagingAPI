@@ -52,7 +52,7 @@ use messaging::solapi::{config::SolapiConfig, types::{Alimtalk, Delivery}};
 let solapi = SolapiConfig::new(api_key, api_secret, sender_number, pf_id).to_sender()?;
 
 let talks = [Alimtalk::new("01012345678", template_id, [("회원명", "홍길동")])];
-let outcome = solapi.send_alimtalks(&talks).await?; // messages/v4/send-many
+let outcome = solapi.send_alimtalks(&talks).await?; // messages/v4/send-many/detail
 
 // 나중에 전달 결과 확인
 let messages = solapi.group_messages(receipt.group_id()).await?;

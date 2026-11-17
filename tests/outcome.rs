@@ -3,6 +3,7 @@
 use std::{
     io::{Read, Write},
     net::TcpListener,
+    sync::mpsc,
     thread,
     time::Duration,
 };
@@ -10,15 +11,30 @@ use std::{
 /// Answers one request with `answer` (a 200 JSON body), or never answers when it is `None`.
 /// Returns the base url.
 fn one_shot_server(answer: Option<&'static str>) -> String {
+    recording_server(answer).0
+}
+
+/// [`one_shot_server`] that also hands over the request line (`POST /path HTTP/1.1`).
+fn recording_server(answer: Option<&'static str>) -> (String, mpsc::Receiver<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let url = format!("http://{}", listener.local_addr().expect("addr"));
+    let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("accept");
         stream
             .set_read_timeout(Some(Duration::from_millis(200)))
             .ok();
+        let mut request = Vec::new();
         let mut buf = [0u8; 4096];
-        while matches!(stream.read(&mut buf), Ok(n) if n > 0) {}
+        while let Ok(n) = stream.read(&mut buf) {
+            if n == 0 {
+                break;
+            }
+            request.extend_from_slice(&buf[..n]);
+        }
+        let head = String::from_utf8_lossy(&request);
+        tx.send(head.lines().next().unwrap_or_default().to_owned())
+            .ok();
         match answer {
             Some(body) => {
                 let res = format!(
@@ -30,7 +46,7 @@ fn one_shot_server(answer: Option<&'static str>) -> String {
             None => thread::sleep(Duration::from_secs(3)),
         }
     });
-    url
+    (url, rx)
 }
 
 fn client(timeout: Duration) -> reqwest::Client {
@@ -49,7 +65,7 @@ mod solapi {
         types::{Outcome, UnknownReason},
     };
 
-    use super::{client, one_shot_server};
+    use super::{client, one_shot_server, recording_server};
 
     async fn send(answer: Option<&'static str>, timeout: Duration) -> Outcome<String> {
         let url = one_shot_server(answer);
@@ -64,6 +80,20 @@ mod solapi {
     }
 
     const LONG: Duration = Duration::from_secs(5);
+
+    #[tokio::test]
+    async fn alimtalks_go_to_send_many_detail() {
+        let answer = r#"{"groupInfo":{"_id":"G9","groupId":"G9","count":{"registeredFailed":0,"registeredSuccess":1}},"failedMessageList":[]}"#;
+        let (url, request) = recording_server(Some(answer));
+        let config = SolapiConfig::new("key", "secret", "0200000000", "PF");
+        let api = Solapi::with_client(config, client(LONG)).with_base_url(url);
+        let talks = [Alimtalk::new("01000000000", "TPL", [("회원명", "테스트")])];
+        api.send_alimtalks(&talks).await.expect("send");
+        assert_eq!(
+            request.recv().expect("request line"),
+            "POST /messages/v4/send-many/detail HTTP/1.1"
+        );
+    }
 
     #[tokio::test]
     async fn answer_with_id_and_group_id_is_sent() {

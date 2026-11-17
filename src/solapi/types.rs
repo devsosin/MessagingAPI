@@ -44,7 +44,7 @@ fn template_variable(name: String) -> String {
     }
 }
 
-/// `messages/v4/send-many` body.
+/// `messages/v4/send-many/detail` body.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct SendManyBody<'a> {

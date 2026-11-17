@@ -13,7 +13,7 @@ use super::{
 };
 
 impl Solapi {
-    /// Sends alimtalks in one group (`messages/v4/send-many`). `Sent` means accepted: Kakao delivery
+    /// Sends alimtalks in one group (`messages/v4/send-many/detail`). `Sent` means accepted: Kakao delivery
     /// (or Solapi's text fallback) is known only later from the group's message list.
     pub async fn send_alimtalks(
         &self,
