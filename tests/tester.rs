@@ -28,6 +28,52 @@ mod solapi_tests {
         let balance = api.balance().await;
         println!("{:?}", balance);
     }
+
+    /// Sends one real alimtalk and follows its group until delivery settles (charged, the receiver
+    /// gets it). Besides the `.env` account it needs `SOLAPI_TEST_RECEIVER`, `SOLAPI_TEST_TEMPLATE_ID`
+    /// and `SOLAPI_TEST_VARIABLES` (`#{key}=value` pairs separated by `;`):
+    /// `cargo test --features solapi -- --ignored test_solapi_delivery --nocapture`
+    #[tokio::test]
+    #[ignore = "sends a real message through Solapi"]
+    async fn test_solapi_delivery() {
+        use std::{env, time::Duration};
+
+        use dotenv::dotenv;
+        use messaging::{solapi::types::Delivery, types::Outcome};
+        dotenv().ok();
+
+        let var = |key: &str| env::var(key).unwrap_or_else(|_| panic!("{key} is not set"));
+        let receiver = var("SOLAPI_TEST_RECEIVER");
+        let template_id = var("SOLAPI_TEST_TEMPLATE_ID");
+        let variables: Vec<(String, String)> = var("SOLAPI_TEST_VARIABLES")
+            .split(';')
+            .filter_map(|pair| pair.split_once('='))
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect();
+
+        let api = SolapiConfig::from_env()
+            .expect("solapi env")
+            .to_sender()
+            .expect("solapi client");
+        let talks = [Alimtalk::new(receiver.as_str(), &template_id, variables)];
+        let outcome = api.send_alimtalks(&talks).await.expect("send");
+        println!("send: {outcome:?}");
+        let Outcome::Sent(receipt) = outcome else {
+            panic!("not accepted")
+        };
+
+        for _ in 0..24 {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            let messages = api.group_messages(receipt.group_id()).await.expect("group");
+            let delivery = Delivery::evaluate(&messages);
+            let codes: Vec<String> = messages.iter().map(|m| m.describe()).collect();
+            println!("delivery: {delivery:?} {codes:?}");
+            if !matches!(delivery, Delivery::InProgress) {
+                return;
+            }
+        }
+        panic!("still in progress after two minutes");
+    }
 }
 
 #[cfg(feature = "aligo")]
