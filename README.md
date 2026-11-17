@@ -20,7 +20,10 @@ TLS 는 rustls 를 쓴다(reqwest, lettre).
 - 문자·알림톡 발송은 `Outcome<SendReceipt>` 를 돌려준다.
   - `Sent(receipt)`: 사업자가 받아들임
   - `Failed(failure)`: 사업자가 거절함 — `failure.kind()`(`LowBalance`, `AuthFailed`, `IpNotAllowed`, `InvalidNumber`, `Upstream`)와 `failure.detail()`(사업자 메시지)
-  - `Unknown`: 요청이 닿았을 수 있는데 응답을 못 받음(타임아웃 등). **자동으로 다시 보내지 않는다** — 두 번 발송될 수 있다.
+  - `Unknown(reason)`: 요청이 닿았을 수 있는데 무엇이 나갔는지 모름. **자동으로 다시 보내지 않는다** — 두 번 발송될 수 있다. `reason`(`UnknownReason`, `Display` 지원):
+    - `Transport(detail)`: 연결 뒤 전송 오류(타임아웃 등)
+    - `UnreadableAnswer(detail)`: 성공 응답인데 본문을 읽지 못함(JSON 오류)
+    - `NoGroupId`: Solapi 응답에 조회할 group id 가 없음
 - 조회(`remain`, `balance`, `group_messages`)는 `Result<T, Failure>`.
 - 기본 HTTP 클라이언트는 타임아웃 20초(연결 5초). `with_client(config, client)` 로 직접 넘기거나 `with_base_url(url)` 로 다른 주소(목 서버)를 쓸 수 있다.
 
