@@ -27,7 +27,7 @@ Each provider module has the same shape: `config.rs` (`XxxConfig::new` / `from_e
 ## Public API surface
 
 - `messaging::aligo::{config::AligoConfig, client…}`: `send_mass`, `send_image`, `remain`.
-- `messaging::solapi::{config::SolapiConfig, types::{Alimtalk, Delivery, MessageStatus}}`: `send_alimtalks`, `group_messages`, `balance`, `Delivery::evaluate`.
+- `messaging::solapi::{config::SolapiConfig, types::{Alimtalk, Delivery, MessageStatus}}`: `send_alimtalks`, `group_messages`, `balance`, `sendable_templates`, `template`, `Delivery::evaluate`; template types `Template`, `TemplateStatus`, `TemplateButton`, `SendableTemplateQuery`.
 - `messaging::email::{config::EmailConfig, types::{Email, BodyType}}`: `send_email`.
 - `messaging::types::Outcome` (`Sent` / `Failed` / `Unknown`) for sends; lookups return `Result<T, Failure>`.
 - Never auto-retry an `Unknown` outcome — the request may have gone through (double send). This is a deliberate contract; keep it.
@@ -38,6 +38,7 @@ Each provider module has the same shape: `config.rs` (`XxxConfig::new` / `from_e
 cargo build --all-features
 cargo test --all-features                                  # unit tests; live tests are skipped (#[ignore])
 cargo test --features solapi -- --ignored test_solapi      # LIVE: real send, costs money
+cargo test --features solapi -- --ignored test_template    # LIVE read-only: template lookups (no send)
 ```
 
 - `cargo test --all-features` is the `verify` command (also in `.claude/github-issue.yml`). Verified passing in the task container (the 4 live tests show as ignored).
@@ -60,9 +61,6 @@ Follow `docs/RUST_CODE_STYLE.md`: construct via `::new()`, private fields, enums
 
 - Issue ids are `MSG-NNN`; issue title format `[MSG-NNN] summary`. Labels: `provider:aligo|solapi|email` plus type labels.
 - Commits: Conventional Commits with the issue id in parentheses at the end, e.g. `feat(solapi): send through messages/v4/send-many/detail (MSG-002)`. Breaking API changes use `feat!:`.
-- Releases are a separate `chore: release X.Y.Z …` commit that bumps `version` in `Cargo.toml` (currently 0.3.0; pre-1.0, breaking changes bump the minor) and updates README. Work lands via PR branches (e.g. `fix/msg-002-solapi-group-id`) merged with merge commits.
+- Releases are a separate `chore: release X.Y.Z …` commit that bumps `version` in `Cargo.toml` (currently 0.4.0; pre-1.0, breaking changes bump the minor) and updates README. Work lands via PR branches (e.g. `fix/msg-002-solapi-group-id`) merged with merge commits.
 - `Cargo.lock` is git-ignored (library).
 
-## Planned: 알림톡 template lookup (not implemented)
-
-Likely home: `src/solapi/` — a method on `Solapi` in `client.rs`, request plumbing in `provider.rs`, template types/enums in `types.rs`, returning `Result<T, Failure>` like `group_messages`/`balance`. Document it in the README's Solapi section and add a live test (`#[ignore]`) in `tests/tester.rs`. Check the Solapi Kakao template API docs before designing.

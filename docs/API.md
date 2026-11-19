@@ -117,6 +117,8 @@ impl Solapi {
 | `async fn send_alimtalks(&self, messages: &[Alimtalk]) -> ClientResult<Outcome<solapi::types::SendReceipt>>` | Sends alimtalks as one group. `Err(InvalidData)` if empty or more than `MAX_MESSAGES` (10,000). |
 | `async fn group_messages(&self, group_id: &str) -> Result<Vec<MessageStatus>, Failure>` | Status of every message in a group, Solapi's fallback texts included. Non-alphanumeric characters of `group_id` are dropped. |
 | `async fn balance(&self) -> Result<Balance, Failure>` | Account balance; no side effect, usable as a connection/credential check. |
+| `async fn sendable_templates(&self, query: &SendableTemplateQuery) -> Result<Vec<Template>, Failure>` | Templates that can be sent now (`GET kakao/v2/templates/sendable`): approved, not dormant/hidden/deleted. No pagination. Read-only. |
+| `async fn template(&self, template_id: &str) -> Result<Template, Failure>` | One template (`GET kakao/v2/templates/:templateId`); Solapi refreshes the dormant state on this call. Characters of `template_id` other than ASCII alphanumerics, `-`, `_` are dropped. Read-only. |
 
 All items below are in `messaging::solapi::types`.
 
@@ -162,6 +164,57 @@ impl Balance {
     pub fn balance(&self) -> f64;
     pub fn point(&self) -> f64;
 }
+
+// Kakao templates (read-only lookups; all fields optional on the wire)
+#[non_exhaustive]
+pub enum TemplateStatus { Pending, Inspecting, Approved, Rejected, Dormant, Other(String) }
+// `Other` keeps any value this crate does not know (case-sensitive original text).
+
+impl Template {
+    pub fn template_id(&self) -> &str;
+    pub fn code(&self) -> Option<&str>;
+    pub fn name(&self) -> &str;
+    pub fn status(&self) -> &TemplateStatus;
+    pub fn is_approved(&self) -> bool;
+    pub fn content(&self) -> &str;                 // original text with `#{변수}` placeholders, for previews
+    pub fn variable_names(&self) -> Vec<&str>;     // without `#{ }`; usable as Alimtalk::new variable keys
+    pub fn buttons(&self) -> &[TemplateButton];
+    pub fn channel_id(&self) -> Option<&str>;      // same value as `pf_id`
+    pub fn category_code(&self) -> Option<&str>;
+    pub fn message_type(&self) -> Option<&str>;
+    pub fn is_hidden(&self) -> bool;
+    pub fn is_deleted(&self) -> bool;
+    pub fn date_created(&self) -> Option<&str>;
+    pub fn date_updated(&self) -> Option<&str>;
+}
+
+impl TemplateButton {
+    pub fn button_type(&self) -> Option<&str>;     // plain string, values not fully documented
+    pub fn name(&self) -> Option<&str>;
+    pub fn link_mobile(&self) -> Option<&str>;
+    pub fn link_pc(&self) -> Option<&str>;
+    pub fn link_android(&self) -> Option<&str>;
+    pub fn link_ios(&self) -> Option<&str>;
+    pub fn chat_extra(&self) -> Option<&str>;
+    pub fn opens_outside_kakao(&self) -> Option<bool>;
+}
+
+#[derive(Default)]
+pub struct SendableTemplateQuery { /* private */ }   // filters; unset/empty ones are not sent, values are URL-encoded
+impl SendableTemplateQuery {
+    pub fn new() -> Self;
+    pub fn channel_id(self, v: impl Into<String>) -> Self;     // = pf_id
+    pub fn template_id(self, v: impl Into<String>) -> Self;
+    pub fn sender_key(self, v: impl Into<String>) -> Self;
+    pub fn template_code(self, v: impl Into<String>) -> Self;
+}
+```
+
+Template lookups need only the API key and secret. They return `Failure` (no `Outcome`), like the other reads. Sending does not validate variables against the template: compare `variable_names()` with your variables yourself.
+
+```rust
+let templates = solapi.sendable_templates(&SendableTemplateQuery::new().channel_id(pf_id)).await?;
+for t in &templates { println!("{} {:?} {}", t.name(), t.variable_names(), t.content()); }
 ```
 
 Decisions use the status **class** only; the fine-grained status codes are not reliable, so use `describe()` for display/logs, not for branching.
@@ -301,5 +354,5 @@ A timeout or SMTP error does not say whether the mail went out; the same no-blin
 
 - Semver, pre-1.0 (`0.x`): a breaking change to the public API bumps the **minor** version. Breaking commits are marked `feat!:`; releases are `chore: release X.Y.Z …` commits. Pin an exact minor (`0.3`) and read the release commits before upgrading.
 - Changes that break callers include: new variants on the public enums (`Outcome`, `UnknownReason`, `FailureKind`, `ClientError`, `Delivery`, …) because callers match on them exhaustively, signature changes, and removed items.
-- Current version: see `version` in `Cargo.toml`. 0.3.0 made "outcome unknown" explicit (`Outcome::Unknown(UnknownReason)`); 0.2.0 introduced the current API.
+- Current version: see `version` in `Cargo.toml`. 0.4.0 added template lookups (`sendable_templates`, `template`); 0.3.0 made "outcome unknown" explicit (`Outcome::Unknown(UnknownReason)`); 0.2.0 introduced the current API.
 - The README (Korean) is a shorter usage guide; this file is the complete reference.
