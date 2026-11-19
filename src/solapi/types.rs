@@ -383,6 +383,307 @@ impl Balance {
     }
 }
 
+/// Approval state of a Kakao template. Solapi documents `PENDING`, `INSPECTING`, `APPROVED` and
+/// `REJECTED`. A value this crate does not
+/// know is kept in `Other` instead of failing the whole answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum TemplateStatus {
+    Pending,
+    Inspecting,
+    Approved,
+    Rejected,
+    Other(String),
+}
+
+impl TemplateStatus {
+    fn parse(value: &str) -> Self {
+        match value.to_ascii_uppercase().as_str() {
+            "PENDING" => Self::Pending,
+            "INSPECTING" => Self::Inspecting,
+            "APPROVED" => Self::Approved,
+            "REJECTED" => Self::Rejected,
+            _ => Self::Other(value.to_owned()),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for TemplateStatus {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(Self::parse(&String::deserialize(deserializer)?))
+    }
+}
+
+impl Default for TemplateStatus {
+    fn default() -> Self {
+        Self::Other(String::new())
+    }
+}
+
+/// A button of a template. Values Solapi does not document stay plain strings.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemplateButton {
+    #[serde(default)]
+    button_type: Option<String>,
+    #[serde(default)]
+    button_name: Option<String>,
+    #[serde(default)]
+    link_mo: Option<String>,
+    #[serde(default)]
+    link_pc: Option<String>,
+    #[serde(default)]
+    link_and: Option<String>,
+    #[serde(default)]
+    link_ios: Option<String>,
+    #[serde(default)]
+    chat_extra: Option<String>,
+    #[serde(default)]
+    target_out: Option<bool>,
+}
+
+impl TemplateButton {
+    /// `WL` (web link), `AL` (app link), … — not exhaustively documented.
+    pub fn button_type(&self) -> Option<&str> {
+        self.button_type.as_deref()
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.button_name.as_deref()
+    }
+
+    pub fn link_mobile(&self) -> Option<&str> {
+        self.link_mo.as_deref()
+    }
+
+    pub fn link_pc(&self) -> Option<&str> {
+        self.link_pc.as_deref()
+    }
+
+    pub fn link_android(&self) -> Option<&str> {
+        self.link_and.as_deref()
+    }
+
+    pub fn link_ios(&self) -> Option<&str> {
+        self.link_ios.as_deref()
+    }
+
+    pub fn chat_extra(&self) -> Option<&str> {
+        self.chat_extra.as_deref()
+    }
+
+    pub fn opens_outside_kakao(&self) -> Option<bool> {
+        self.target_out
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+struct TemplateVariable {
+    #[serde(default)]
+    name: String,
+}
+
+/// A Kakao template (`kakao/v2/templates/…`). Every field is optional on the wire, so the accessors
+/// return empty values for what Solapi left out.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Template {
+    #[serde(default)]
+    template_id: String,
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    channel_id: Option<String>,
+    #[serde(default)]
+    category_code: Option<String>,
+    #[serde(default)]
+    message_type: Option<String>,
+    #[serde(default)]
+    content: String,
+    #[serde(default)]
+    variables: Vec<TemplateVariable>,
+    #[serde(default)]
+    buttons: Vec<TemplateButton>,
+    #[serde(default)]
+    status: TemplateStatus,
+    #[serde(default)]
+    is_hidden: bool,
+    #[serde(default)]
+    is_deleted: bool,
+    #[serde(default)]
+    date_created: Option<String>,
+    #[serde(default)]
+    date_updated: Option<String>,
+}
+
+impl Template {
+    pub fn template_id(&self) -> &str {
+        &self.template_id
+    }
+
+    /// The template code registered with Kakao.
+    pub fn code(&self) -> Option<&str> {
+        self.code.as_deref()
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn status(&self) -> &TemplateStatus {
+        &self.status
+    }
+
+    pub fn is_approved(&self) -> bool {
+        self.status == TemplateStatus::Approved
+    }
+
+    /// The template text as registered, `#{변수}` placeholders included — for previews.
+    pub fn content(&self) -> &str {
+        &self.content
+    }
+
+    /// Variable names without the `#{ }` wrapper, as `Alimtalk::new` takes them.
+    /// Read from `variables`; when Solapi sends none, from the placeholders in `content`.
+    pub fn variable_names(&self) -> Vec<&str> {
+        let listed: Vec<&str> = self
+            .variables
+            .iter()
+            .map(|v| unwrap_variable(&v.name))
+            .filter(|name| !name.is_empty())
+            .collect();
+        if !listed.is_empty() {
+            return listed;
+        }
+        let mut found = Vec::new();
+        let mut rest = self.content.as_str();
+        while let Some(start) = rest.find("#{") {
+            let after = &rest[start + 2..];
+            let Some(end) = after.find('}') else { break };
+            let name = &after[..end];
+            if !name.is_empty() && !found.contains(&name) {
+                found.push(name);
+            }
+            rest = &after[end + 1..];
+        }
+        found
+    }
+
+    pub fn buttons(&self) -> &[TemplateButton] {
+        &self.buttons
+    }
+
+    /// The Kakao channel id — the same value as `pf_id` in the config.
+    pub fn channel_id(&self) -> Option<&str> {
+        self.channel_id.as_deref()
+    }
+
+    pub fn category_code(&self) -> Option<&str> {
+        self.category_code.as_deref()
+    }
+
+    pub fn message_type(&self) -> Option<&str> {
+        self.message_type.as_deref()
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        self.is_hidden
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        self.is_deleted
+    }
+
+    pub fn date_created(&self) -> Option<&str> {
+        self.date_created.as_deref()
+    }
+
+    pub fn date_updated(&self) -> Option<&str> {
+        self.date_updated.as_deref()
+    }
+}
+
+fn unwrap_variable(name: &str) -> &str {
+    name.strip_prefix("#{")
+        .and_then(|n| n.strip_suffix('}'))
+        .unwrap_or(name)
+}
+
+/// Filters of `kakao/v2/templates/sendable`. Unset or empty fields are not sent.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SendableTemplateQuery {
+    channel_id: Option<String>,
+    template_id: Option<String>,
+    sender_key: Option<String>,
+    template_code: Option<String>,
+}
+
+impl SendableTemplateQuery {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The Kakao channel id (`pf_id`).
+    pub fn channel_id(mut self, value: impl Into<String>) -> Self {
+        self.channel_id = Some(value.into());
+        self
+    }
+
+    pub fn template_id(mut self, value: impl Into<String>) -> Self {
+        self.template_id = Some(value.into());
+        self
+    }
+
+    pub fn sender_key(mut self, value: impl Into<String>) -> Self {
+        self.sender_key = Some(value.into());
+        self
+    }
+
+    pub fn template_code(mut self, value: impl Into<String>) -> Self {
+        self.template_code = Some(value.into());
+        self
+    }
+
+    /// `?channelId=…&templateCode=…` with every value percent-encoded; empty when nothing is set.
+    pub(super) fn to_query_string(&self) -> String {
+        let pairs = [
+            ("channelId", &self.channel_id),
+            ("templateId", &self.template_id),
+            ("senderKey", &self.sender_key),
+            ("templateCode", &self.template_code),
+        ];
+        let joined: Vec<String> = pairs
+            .iter()
+            .filter_map(|(key, value)| {
+                value
+                    .as_deref()
+                    .filter(|v| !v.is_empty())
+                    .map(|v| format!("{key}={}", percent_encode(v)))
+            })
+            .collect();
+        if joined.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", joined.join("&"))
+        }
+    }
+}
+
+fn percent_encode(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

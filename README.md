@@ -9,10 +9,12 @@ messaging = { path = "../MessagingAPI", features = ["aligo", "solapi", "email"] 
 | feature | 사업자 | 용도 |
 |---|---|---|
 | `aligo` | Aligo | 문자(SMS·LMS), 이미지 문자(MMS), 잔여 건수 |
-| `solapi` | Solapi | 카카오 알림톡, 전달 결과 조회, 잔액 |
+| `solapi` | Solapi | 카카오 알림톡, 전달 결과 조회, 템플릿 조회, 잔액 |
 | `email` | SMTP (naver, gmail) | 이메일 |
 
 TLS 는 rustls 를 쓴다(reqwest, lettre).
+
+전체 공개 API(시그니처, 오류·결과 타입, 버전 규칙)는 [docs/API.md](docs/API.md) 에 있다. 아래는 요약과 예제다.
 
 ## 결과와 오류
 
@@ -71,6 +73,29 @@ match Delivery::evaluate(&messages) {
 - 상태코드는 큰 분류로만 판정한다: `2000`·`3000` 진행 중, `4000` 수신, 그 밖은 실패. 코드와 메시지는 `MessageStatus::describe()` 로 볼 수 있다.
 - 발신번호는 사전 등록 필수, 발송 내역 보관 6개월(생성일 기준).
 
+### 템플릿 조회
+
+발송 전에 템플릿이 쓰는 변수와 내용을 확인한다(읽기 전용, API 키·시크릿만 필요).
+
+```rust
+use messaging::solapi::types::SendableTemplateQuery;
+
+// 지금 발송 가능한 템플릿(승인됨, 숨김·삭제 아님). 페이지네이션 없음
+let list = solapi.sendable_templates(&SendableTemplateQuery::new().channel_id(pf_id)).await?;
+for t in &list {
+    println!("{} {:?}\n{}", t.name(), t.variable_names(), t.content()); // 변수 이름, #{변수} 포함 원문
+}
+
+// 단건
+let template = solapi.template("KA01TP...").await?;
+if template.is_approved() { /* template.variable_names() 로 Alimtalk 변수 확인 */ }
+```
+
+- `status()` 는 `TemplateStatus`(`Pending`/`Inspecting`/`Approved`/`Rejected`/`Other(String)`, `#[non_exhaustive]`). 모르는 값은 `Other` 로 보존된다.
+- `pf_id` 는 응답의 `channel_id()` 와 같은 값이다.
+- 발송할 때 변수를 템플릿과 자동으로 맞춰 보지는 않는다. `variable_names()` 와 직접 비교한다.
+- 실패는 `Failure`(다른 조회와 동일).
+
 ## Email
 
 ```rust
@@ -112,6 +137,7 @@ ALIGO_TEST=Y|N   # 선택
 ```sh
 cargo test --all-features                                 # 단위 테스트
 cargo test --features solapi -- --ignored test_solapi     # 실제 발송 (.env 필요, 비용 발생)
+cargo test --features solapi -- --ignored test_template   # 템플릿 조회(읽기 전용, 발송 없음)
 ```
 
 실제 사업자를 부르는 테스트(`tests/tester.rs`)는 모두 `#[ignore]` 다.
