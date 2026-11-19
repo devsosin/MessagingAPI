@@ -117,8 +117,8 @@ impl Solapi {
 | `async fn send_alimtalks(&self, messages: &[Alimtalk]) -> ClientResult<Outcome<solapi::types::SendReceipt>>` | Sends alimtalks as one group. `Err(InvalidData)` if empty or more than `MAX_MESSAGES` (10,000). |
 | `async fn group_messages(&self, group_id: &str) -> Result<Vec<MessageStatus>, Failure>` | Status of every message in a group, Solapi's fallback texts included. Non-alphanumeric characters of `group_id` are dropped. |
 | `async fn balance(&self) -> Result<Balance, Failure>` | Account balance; no side effect, usable as a connection/credential check. |
-| `async fn sendable_templates(&self, query: &SendableTemplateQuery) -> Result<Vec<Template>, Failure>` | Templates that can be sent now (`GET kakao/v2/templates/sendable`): approved, not dormant/hidden/deleted. No pagination. Read-only. |
-| `async fn template(&self, template_id: &str) -> Result<Template, Failure>` | One template (`GET kakao/v2/templates/:templateId`); Solapi refreshes the dormant state on this call. Characters of `template_id` other than ASCII alphanumerics, `-`, `_` are dropped. Read-only. |
+| `async fn sendable_templates(&self, query: &SendableTemplateQuery) -> Result<Vec<Template>, Failure>` | Templates that can be sent now (`GET kakao/v2/templates/sendable`): approved, not hidden/deleted. No pagination. Read-only. |
+| `async fn template(&self, template_id: &str) -> Result<Template, Failure>` | One template (`GET kakao/v2/templates/:templateId`). Characters of `template_id` other than ASCII alphanumerics, `-`, `_` are dropped. Read-only. |
 
 All items below are in `messaging::solapi::types`.
 
@@ -167,7 +167,7 @@ impl Balance {
 
 // Kakao templates (read-only lookups; all fields optional on the wire)
 #[non_exhaustive]
-pub enum TemplateStatus { Pending, Inspecting, Approved, Rejected, Dormant, Other(String) }
+pub enum TemplateStatus { Pending, Inspecting, Approved, Rejected, Other(String) }
 // `Other` keeps any value this crate does not know (case-sensitive original text).
 
 impl Template {

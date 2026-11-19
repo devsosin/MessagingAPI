@@ -231,18 +231,17 @@ mod solapi {
     }
 
     #[tokio::test]
-    async fn unknown_and_dormant_statuses_are_kept() {
-        let answer = r#"[{"templateId":"A","status":"DORMANT"},{"templateId":"B","status":"SOMETHING_NEW"},{"templateId":"C","status":"INSPECTING"}]"#;
+    async fn unknown_statuses_are_kept() {
+        let answer = r#"[{"templateId":"B","status":"SOMETHING_NEW"},{"templateId":"C","status":"INSPECTING"}]"#;
         let list = template_api(one_shot_server(Some(answer)))
             .sendable_templates(&SendableTemplateQuery::new())
             .await
             .expect("list");
-        assert_eq!(list[0].status(), &TemplateStatus::Dormant);
         assert_eq!(
-            list[1].status(),
+            list[0].status(),
             &TemplateStatus::Other("SOMETHING_NEW".into())
         );
-        assert_eq!(list[2].status(), &TemplateStatus::Inspecting);
+        assert_eq!(list[1].status(), &TemplateStatus::Inspecting);
         assert!(list.iter().all(|t| !t.is_approved()));
     }
 

@@ -50,8 +50,8 @@ impl Solapi {
         self.get("cash/v1/balance").await
     }
 
-    /// Templates that can be sent now (`kakao/v2/templates/sendable`): approved, not dormant, not
-    /// hidden or deleted. No pagination. Use it to see a template's variables before sending.
+    /// Templates that can be sent now (`kakao/v2/templates/sendable`): approved, not hidden or
+    /// deleted. No pagination. Use it to see a template's variables before sending.
     pub async fn sendable_templates(
         &self,
         query: &SendableTemplateQuery,
@@ -63,8 +63,7 @@ impl Solapi {
         .await
     }
 
-    /// One template (`kakao/v2/templates/:templateId`). Solapi refreshes the dormant state from Kakao
-    /// on this call, so the status is current.
+    /// One template (`kakao/v2/templates/:templateId`). Returns that template's current status.
     pub async fn template(&self, template_id: &str) -> Result<Template, Failure> {
         // Template ids are alphanumeric (with `-` and `_`); anything else must not reach the path.
         let template_id: String = template_id

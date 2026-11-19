@@ -80,18 +80,18 @@ match Delivery::evaluate(&messages) {
 ```rust
 use messaging::solapi::types::SendableTemplateQuery;
 
-// 지금 발송 가능한 템플릿(승인됨, 휴면·숨김·삭제 아님). 페이지네이션 없음
+// 지금 발송 가능한 템플릿(승인됨, 숨김·삭제 아님). 페이지네이션 없음
 let list = solapi.sendable_templates(&SendableTemplateQuery::new().channel_id(pf_id)).await?;
 for t in &list {
     println!("{} {:?}\n{}", t.name(), t.variable_names(), t.content()); // 변수 이름, #{변수} 포함 원문
 }
 
-// 단건 (조회 시 Solapi 가 카카오에 휴면 여부를 확인해 최신 상태를 돌려준다)
+// 단건
 let template = solapi.template("KA01TP...").await?;
 if template.is_approved() { /* template.variable_names() 로 Alimtalk 변수 확인 */ }
 ```
 
-- `status()` 는 `TemplateStatus`(`Pending`/`Inspecting`/`Approved`/`Rejected`/`Dormant`/`Other(String)`, `#[non_exhaustive]`). 모르는 값은 `Other` 로 보존된다.
+- `status()` 는 `TemplateStatus`(`Pending`/`Inspecting`/`Approved`/`Rejected`/`Other(String)`, `#[non_exhaustive]`). 모르는 값은 `Other` 로 보존된다.
 - `pf_id` 는 응답의 `channel_id()` 와 같은 값이다.
 - 발송할 때 변수를 템플릿과 자동으로 맞춰 보지는 않는다. `variable_names()` 와 직접 비교한다.
 - 실패는 `Failure`(다른 조회와 동일).

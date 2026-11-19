@@ -384,7 +384,7 @@ impl Balance {
 }
 
 /// Approval state of a Kakao template. Solapi documents `PENDING`, `INSPECTING`, `APPROVED` and
-/// `REJECTED`; a dormant (휴면) template is reported by its own value. A value this crate does not
+/// `REJECTED`. A value this crate does not
 /// know is kept in `Other` instead of failing the whole answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -393,8 +393,6 @@ pub enum TemplateStatus {
     Inspecting,
     Approved,
     Rejected,
-    /// 휴면.
-    Dormant,
     Other(String),
 }
 
@@ -405,7 +403,6 @@ impl TemplateStatus {
             "INSPECTING" => Self::Inspecting,
             "APPROVED" => Self::Approved,
             "REJECTED" => Self::Rejected,
-            "DORMANT" => Self::Dormant,
             _ => Self::Other(value.to_owned()),
         }
     }
