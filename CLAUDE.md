@@ -18,6 +18,7 @@ tests/
   outcome.rs    unit-style tests (mock server, no network to providers)
   tester.rs     live tests, all `#[ignore]`
 docs/RUST_CODE_STYLE.md   code style guide
+docs/API.md               consumer-facing public API reference
 .claude/github-issue.yml  issue settings (see harness:github-issue)
 ```
 
@@ -46,6 +47,10 @@ cargo test --features solapi -- --ignored test_solapi      # LIVE: real send, co
   - Email: `EMAIL_SERVER`, `EMAIL_USERNAME`, `EMAIL_SENDER_NAME`, `EMAIL_PASSWORD`.
 - Confirm with the user before running any `--ignored` test: they hit real provider APIs, send real messages and are billed.
 - rust-analyzer shows feature-gated code as inactive unless `rust-analyzer.cargo.features` lists the features.
+
+## Consumer API docs
+
+Other repos and agents that use this crate read `docs/API.md` (public items only, env var names only). Keep it updated whenever the public API changes — part of the definition of done: any added, removed or changed `pub` item, signature, enum variant, env var name or feature gets reflected in `docs/API.md` (and README if it shows the same usage) in the same PR.
 
 ## Code style
 

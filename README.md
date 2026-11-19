@@ -14,6 +14,8 @@ messaging = { path = "../MessagingAPI", features = ["aligo", "solapi", "email"] 
 
 TLS 는 rustls 를 쓴다(reqwest, lettre).
 
+전체 공개 API(시그니처, 오류·결과 타입, 버전 규칙)는 [docs/API.md](docs/API.md) 에 있다. 아래는 요약과 예제다.
+
 ## 결과와 오류
 
 - `ClientResult<T>` 의 `Err(ClientError)`: 보내기 전의 문제 — 설정 누락(`Configuration`), 잘못된 입력(`InvalidData`), HTTP 클라이언트·SMTP 오류.
