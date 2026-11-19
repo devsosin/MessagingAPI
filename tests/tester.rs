@@ -140,3 +140,76 @@ mod email_tests {
         println!("{:?}", result);
     }
 }
+
+#[cfg(feature = "solapi")]
+mod solapi_template_tests {
+    use messaging::solapi::{config::SolapiConfig, types::SendableTemplateQuery};
+
+    fn api() -> messaging::solapi::Solapi {
+        dotenv::dotenv().ok();
+        // Lookups need only the key and secret (not the sender number or `pf_id`).
+        let var = |key: &str| std::env::var(key).unwrap_or_else(|_| panic!("{key} is not set"));
+        SolapiConfig::new(var("SOLAPI_API_KEY"), var("SOLAPI_API_SECRET"), "", "")
+            .to_sender()
+            .expect("solapi client")
+    }
+
+    /// Read-only: lists the sendable templates and prints names' status and variables only.
+    /// `cargo test --features solapi -- --ignored test_template_sendable --nocapture`
+    #[tokio::test]
+    #[ignore = "calls the real Solapi API"]
+    async fn test_template_sendable() {
+        let templates = api()
+            .sendable_templates(&SendableTemplateQuery::new())
+            .await
+            .expect("sendable");
+        println!("sendable: {}", templates.len());
+        for t in &templates {
+            assert!(t.is_approved(), "sendable but {:?}", t.status());
+            println!("{:?} vars={}", t.status(), t.variable_names().len());
+        }
+
+        // `SOLAPI_PF_ID` is the channelId: filtering by it keeps only that channel.
+        if let Ok(pf_id) = std::env::var("SOLAPI_PF_ID").map(|v| v.trim().to_owned())
+            && !pf_id.is_empty()
+        {
+            let own = api()
+                .sendable_templates(&SendableTemplateQuery::new().channel_id(&pf_id))
+                .await
+                .expect("sendable by channel");
+            assert!(own.iter().all(|t| t.channel_id() == Some(pf_id.as_str())));
+        }
+    }
+
+    /// Read-only: fetches `SOLAPI_TEST_TEMPLATE_ID`, or the first sendable template when unset (skipped
+    /// when there is none).
+    /// `cargo test --features solapi -- --ignored test_template_get --nocapture`
+    #[tokio::test]
+    #[ignore = "calls the real Solapi API"]
+    async fn test_template_get() {
+        let api = api();
+        let id = match std::env::var("SOLAPI_TEST_TEMPLATE_ID") {
+            Ok(id) if !id.trim().is_empty() => id,
+            _ => match api
+                .sendable_templates(&SendableTemplateQuery::new())
+                .await
+                .expect("sendable")
+                .first()
+            {
+                Some(first) => first.template_id().to_owned(),
+                None => {
+                    println!("no template to fetch, skipped");
+                    return;
+                }
+            },
+        };
+        let template = api.template(id.trim()).await.expect("template");
+        println!(
+            "{:?} approved={} vars={:?} buttons={}",
+            template.status(),
+            template.is_approved(),
+            template.variable_names().len(),
+            template.buttons().len()
+        );
+    }
+}
